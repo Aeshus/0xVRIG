@@ -293,6 +293,39 @@ main {
   background: #0a0a0a; border: 1px solid var(--panel-border); color: var(--text);
   font-family: var(--font); font-size: 11px; padding: 0.2rem 0.4rem; width: 10em;
 }
+#heap-viz { font-size: 12px; }
+.heap-memory-strip { display: flex; flex-wrap: wrap; gap: 2px; margin-bottom: 1rem; padding: 0.5rem; border: 1px solid var(--panel-border); }
+.heap-chunk { display: flex; flex-direction: column; border: 1px solid var(--panel-border); border-radius: 2px; overflow: hidden; min-width: 4em; }
+.heap-chunk.allocated { border-color: var(--green); }
+.heap-chunk.freed { border-color: var(--text-dim); opacity: 0.7; }
+.heap-chunk.corrupted { border-color: var(--red); }
+.heap-chunk.highlighted { outline: 2px solid var(--yellow); outline-offset: 1px; }
+.heap-chunk-header { display: flex; font-size: 10px; padding: 2px 4px; background: rgba(255,255,255,0.05); }
+.heap-chunk-header .prev-size { color: var(--text-dim); margin-right: 0.5em; }
+.heap-chunk-header .size-field { color: var(--amber); }
+.heap-chunk-header .flags { color: var(--purple); margin-left: 0.25em; }
+.heap-chunk-data { padding: 4px; font-size: 11px; min-height: 1.5em; display: flex; flex-wrap: wrap; gap: 1px; }
+.heap-chunk-data .byte { width: 2em; text-align: center; font-size: 11px; padding: 1px 0; border-radius: 1px; }
+.heap-chunk-data .byte.allocated { color: var(--green); background: rgba(78,201,176,0.1); }
+.heap-chunk-data .byte.freed { color: var(--text-dim); background: rgba(255,255,255,0.03); }
+.heap-chunk-data .byte.pointer { color: var(--amber); background: rgba(206,145,120,0.15); }
+.heap-chunk-data .byte.corrupted { color: var(--red); background: rgba(244,71,71,0.2); }
+.heap-chunk-label { font-size: 10px; color: var(--text-dim); padding: 2px 4px; text-align: center; border-top: 1px solid var(--panel-border); }
+.free-lists { margin-top: 0.75rem; font-size: 11px; }
+.free-lists h4 { color: var(--text-dim); font-weight: normal; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.free-list-row { display: flex; align-items: center; gap: 0.25rem; padding: 0.15rem 0; flex-wrap: wrap; }
+.free-list-name { color: var(--blue); width: 10em; }
+.free-list-node { display: inline-flex; align-items: center; gap: 0.25rem; }
+.free-list-addr { color: var(--amber); padding: 1px 4px; border: 1px solid var(--panel-border); border-radius: 2px; }
+.free-list-arrow { color: var(--text-dim); }
+.free-list-nil { color: var(--text-dim); font-style: italic; }
+.func-ptr-table { margin-top: 0.75rem; font-size: 11px; }
+.func-ptr-table h4 { color: var(--text-dim); font-weight: normal; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.func-ptr-row { display: flex; gap: 0.75rem; padding: 0.15rem 0; }
+.func-ptr-name { color: var(--yellow); width: 10em; }
+.func-ptr-val { color: var(--amber); }
+.func-ptr-val.overwritten { color: var(--red); animation: flash 0.4s ease; }
+.heap-top-chunk { border: 1px dashed var(--text-dim); border-radius: 2px; padding: 4px 8px; font-size: 10px; color: var(--text-dim); text-align: center; flex: 1; min-width: 4em; }
 </style>
 </head>
 <body class="crt">
@@ -310,7 +343,7 @@ main {
     </div>
     <div class="panel" id="stack-panel">
       <div class="panel-hdr">stack <span id="stack-info"></span></div>
-      <div class="panel-body"><div id="stack-viz"></div></div>
+      <div class="panel-body"><div id="stack-viz"></div><div id="heap-viz"></div></div>
     </div>
     <div class="panel" id="input-panel">
       <div class="panel-hdr">input</div>
@@ -446,6 +479,215 @@ class StackSim {
     if (byteIndex < this.bufSize + this.canarySize + this.ebpSize) return 'ebp';
     if (byteIndex < this.bufSize + this.canarySize + this.ebpSize + this.retSize) return 'ret';
     return 'ret'; // extra bytes past ret (for ret2libc/ROP/SROP payloads)
+  }
+}
+
+// ──────────────────────────────────────────────
+// HeapSim — glibc-like heap allocator simulation
+// ──────────────────────────────────────────────
+class HeapSim {
+  constructor(size = 1024) {
+    this.memorySize = size;
+    this.memory = new Uint8Array(size);
+    this.written = new Uint8Array(size);
+    this.highlight = { start: -1, end: -1 };
+    this.chunks = new Map(); // addr → {size, allocated, dataStart}
+    this.HEADER_SIZE = 8;   // prev_size(4) + size(4)
+    this.MIN_CHUNK = 16;    // header + at least 8 data (or fd+bk)
+    this.tcache = {};        // size → [addr, ...] (max 7 per bin)
+    this.fastbins = {};      // size → [addr, ...]
+    this.unsorted = [];      // [addr, ...]
+    this.topAddr = 0;
+    this.topSize = size;
+    this.funcPtrs = {};
+    this.mainArena = 0x0804b100;
+    this.baseAddr = 0x08050000;
+  }
+
+  _writeLE(offset, value, size) {
+    for (let i = 0; i < size; i++) {
+      this.memory[offset + i] = (value >>> (i * 8)) & 0xff;
+    }
+  }
+
+  _readLE(offset, size) {
+    let v = 0;
+    for (let i = size - 1; i >= 0; i--) {
+      v = (v * 256) + this.memory[offset + i];
+    }
+    return v >>> 0;
+  }
+
+  _alignSize(requested) {
+    // Add header, align to 8 bytes, enforce minimum
+    let total = requested + this.HEADER_SIZE;
+    total = (total + 7) & ~7;
+    if (total < this.MIN_CHUNK) total = this.MIN_CHUNK;
+    return total;
+  }
+
+  malloc(requested) {
+    const chunkSize = this._alignSize(requested);
+    const dataSize = chunkSize - this.HEADER_SIZE;
+
+    // 1. Check tcache
+    if (this.tcache[chunkSize] && this.tcache[chunkSize].length > 0) {
+      const addr = this.tcache[chunkSize].pop();
+      const chunk = this.chunks.get(addr);
+      if (chunk) {
+        chunk.allocated = true;
+        this._writeChunkHeader(addr, chunkSize, true);
+        return { addr: addr, dataAddr: addr + this.HEADER_SIZE, dataSize: dataSize };
+      }
+    }
+
+    // 2. Check fastbin (for sizes <= 64)
+    if (chunkSize <= 64 && this.fastbins[chunkSize] && this.fastbins[chunkSize].length > 0) {
+      const addr = this.fastbins[chunkSize].pop();
+      const chunk = this.chunks.get(addr);
+      if (chunk) {
+        chunk.allocated = true;
+        this._writeChunkHeader(addr, chunkSize, true);
+        return { addr: addr, dataAddr: addr + this.HEADER_SIZE, dataSize: dataSize };
+      }
+    }
+
+    // 3. Check unsorted bin
+    for (let i = 0; i < this.unsorted.length; i++) {
+      const addr = this.unsorted[i];
+      const chunk = this.chunks.get(addr);
+      if (chunk && chunk.size >= chunkSize) {
+        this.unsorted.splice(i, 1);
+        chunk.allocated = true;
+        this._writeChunkHeader(addr, chunk.size, true);
+        return { addr: addr, dataAddr: addr + this.HEADER_SIZE, dataSize: chunk.size - this.HEADER_SIZE };
+      }
+    }
+
+    // 4. Carve from top chunk
+    if (this.topSize >= chunkSize) {
+      const addr = this.topAddr;
+      this.topAddr += chunkSize;
+      this.topSize -= chunkSize;
+      this.chunks.set(addr, { size: chunkSize, allocated: true, dataStart: addr + this.HEADER_SIZE });
+      this._writeChunkHeader(addr, chunkSize, true);
+      return { addr: addr, dataAddr: addr + this.HEADER_SIZE, dataSize: dataSize };
+    }
+
+    return null; // out of memory
+  }
+
+  free(addr) {
+    // addr is the chunk start (header), not the data pointer
+    // If caller passes data pointer, adjust
+    let chunkAddr = addr;
+    if (!this.chunks.has(addr) && this.chunks.has(addr - this.HEADER_SIZE)) {
+      chunkAddr = addr - this.HEADER_SIZE;
+    }
+    const chunk = this.chunks.get(chunkAddr);
+    if (!chunk || !chunk.allocated) return false;
+
+    chunk.allocated = false;
+    const chunkSize = chunk.size;
+    const dataStart = chunkAddr + this.HEADER_SIZE;
+
+    // Mark chunk as freed in header (clear in-use bit)
+    this._writeChunkHeader(chunkAddr, chunkSize, false);
+
+    // 1. Try tcache first (max 7 per bin)
+    if (!this.tcache[chunkSize]) this.tcache[chunkSize] = [];
+    if (this.tcache[chunkSize].length < 7) {
+      // Write fd pointer (points to previous tcache entry or 0)
+      const prevFd = this.tcache[chunkSize].length > 0
+        ? this.tcache[chunkSize][this.tcache[chunkSize].length - 1] + this.HEADER_SIZE
+        : 0;
+      this._writeLE(dataStart, prevFd, 4);
+      this.written[dataStart] = 1;
+      this.written[dataStart + 1] = 1;
+      this.written[dataStart + 2] = 1;
+      this.written[dataStart + 3] = 1;
+      this.tcache[chunkSize].push(chunkAddr);
+      return true;
+    }
+
+    // 2. Fastbin (if size <= 64)
+    if (chunkSize <= 64) {
+      if (!this.fastbins[chunkSize]) this.fastbins[chunkSize] = [];
+      const prevFd = this.fastbins[chunkSize].length > 0
+        ? this.fastbins[chunkSize][this.fastbins[chunkSize].length - 1] + this.HEADER_SIZE
+        : 0;
+      this._writeLE(dataStart, prevFd, 4);
+      this.written[dataStart] = 1;
+      this.written[dataStart + 1] = 1;
+      this.written[dataStart + 2] = 1;
+      this.written[dataStart + 3] = 1;
+      this.fastbins[chunkSize].push(chunkAddr);
+      return true;
+    }
+
+    // 3. Unsorted bin
+    const prevFd = this.unsorted.length > 0
+      ? this.unsorted[this.unsorted.length - 1] + this.HEADER_SIZE
+      : 0;
+    this._writeLE(dataStart, prevFd, 4);
+    this.written[dataStart] = 1;
+    this.written[dataStart + 1] = 1;
+    this.written[dataStart + 2] = 1;
+    this.written[dataStart + 3] = 1;
+    this.unsorted.push(chunkAddr);
+    return true;
+  }
+
+  _writeChunkHeader(addr, size, inUse) {
+    // prev_size (4 bytes) — leave as-is for now
+    // size field (4 bytes): actual size | PREV_INUSE flag (bit 0)
+    const sizeField = inUse ? (size | 1) : (size & ~1);
+    this._writeLE(addr + 4, sizeField, 4);
+  }
+
+  write(offset, bytes) {
+    for (let i = 0; i < bytes.length && (offset + i) < this.memorySize; i++) {
+      this.memory[offset + i] = bytes[i];
+      this.written[offset + i] = 1;
+    }
+  }
+
+  read(offset, size) {
+    const result = [];
+    for (let i = 0; i < size && (offset + i) < this.memorySize; i++) {
+      result.push(this.memory[offset + i]);
+    }
+    return result;
+  }
+
+  getChunksForDisplay() {
+    const sorted = Array.from(this.chunks.entries())
+      .sort((a, b) => a[0] - b[0])
+      .map(([addr, info]) => ({
+        addr: addr,
+        size: info.size,
+        allocated: info.allocated,
+        dataStart: addr + this.HEADER_SIZE,
+        dataSize: info.size - this.HEADER_SIZE,
+        highlighted: addr >= this.highlight.start && addr < this.highlight.end
+      }));
+    return sorted;
+  }
+
+  getFreeLists() {
+    return {
+      tcache: { ...this.tcache },
+      fastbins: { ...this.fastbins },
+      unsorted: [...this.unsorted]
+    };
+  }
+
+  markRegion(start, end) {
+    this.highlight = { start: start, end: end };
+  }
+
+  clearHighlight() {
+    this.highlight = { start: -1, end: -1 };
   }
 }
 
@@ -1294,6 +1536,264 @@ function renderStack() {
   info.textContent = '— ' + sim.totalSize + ' bytes total: buffer[' + sim.bufSize + ']' + canaryLabel + ' + bookmark[4] + go-back addr[4]';
 }
 
+function renderHeap() {
+  const heap = state.heap;
+  if (!heap) return;
+  const el = document.getElementById('heap-viz');
+  if (!el) return;
+  el.innerHTML = '';
+
+  const chunks = heap.getChunksForDisplay();
+  const freeLists = heap.getFreeLists();
+
+  // Build a set of freed chunk data addresses for pointer detection
+  const freedDataAddrs = new Set();
+  chunks.forEach(c => { if (!c.allocated) freedDataAddrs.add(c.dataStart); });
+
+  // --- Chunk strip ---
+  const strip = document.createElement('div');
+  strip.className = 'heap-memory-strip';
+
+  chunks.forEach(chunk => {
+    const chunkEl = document.createElement('div');
+    chunkEl.className = 'heap-chunk';
+    if (chunk.allocated) chunkEl.classList.add('allocated');
+    else chunkEl.classList.add('freed');
+    if (chunk.highlighted) chunkEl.classList.add('highlighted');
+
+    // Header row
+    const hdr = document.createElement('div');
+    hdr.className = 'heap-chunk-header';
+    const prevSizeVal = heap._readLE(chunk.addr, 4);
+    const sizeFieldVal = heap._readLE(chunk.addr + 4, 4);
+    const rawSize = sizeFieldVal & ~7;
+    const prevInUse = sizeFieldVal & 1;
+
+    const ps = document.createElement('span');
+    ps.className = 'prev-size';
+    ps.textContent = 'ps:' + prevSizeVal;
+    hdr.appendChild(ps);
+
+    const sz = document.createElement('span');
+    sz.className = 'size-field';
+    sz.textContent = 'sz:' + rawSize;
+    hdr.appendChild(sz);
+
+    const fl = document.createElement('span');
+    fl.className = 'flags';
+    fl.textContent = prevInUse ? 'P' : '';
+    hdr.appendChild(fl);
+
+    chunkEl.appendChild(hdr);
+
+    // Data bytes (show first 32 max)
+    const dataEl = document.createElement('div');
+    dataEl.className = 'heap-chunk-data';
+    const showBytes = Math.min(chunk.dataSize, 32);
+
+    for (let i = 0; i < showBytes; i++) {
+      const byteIdx = chunk.dataStart + i;
+      const byteEl = document.createElement('span');
+      byteEl.className = 'byte';
+      if (byteIdx < heap.memorySize) {
+        byteEl.textContent = hex2(heap.memory[byteIdx]);
+        if (chunk.allocated) {
+          byteEl.classList.add('allocated');
+        } else {
+          // First 4 bytes of freed chunk = fd pointer
+          if (i < 4) byteEl.classList.add('pointer');
+          else byteEl.classList.add('freed');
+        }
+      } else {
+        byteEl.textContent = '--';
+        byteEl.classList.add('freed');
+      }
+      dataEl.appendChild(byteEl);
+    }
+    if (chunk.dataSize > 32) {
+      const more = document.createElement('span');
+      more.className = 'byte freed';
+      more.textContent = '...';
+      dataEl.appendChild(more);
+    }
+    chunkEl.appendChild(dataEl);
+
+    // Label
+    const label = document.createElement('div');
+    label.className = 'heap-chunk-label';
+    const displayAddr = heap.baseAddr + chunk.addr;
+    label.textContent = hex8(displayAddr) + ' (' + chunk.dataSize + 'B)';
+    chunkEl.appendChild(label);
+
+    strip.appendChild(chunkEl);
+  });
+
+  // Top chunk indicator
+  if (heap.topSize > 0) {
+    const topEl = document.createElement('div');
+    topEl.className = 'heap-top-chunk';
+    topEl.textContent = 'Top chunk (' + heap.topSize + ' bytes free)';
+    strip.appendChild(topEl);
+  }
+
+  el.appendChild(strip);
+
+  // --- Recycling Lists (free lists) ---
+  const listsEl = document.createElement('div');
+  listsEl.className = 'free-lists';
+  const listsTitle = document.createElement('h4');
+  listsTitle.textContent = 'Recycling Lists (freed chunks)';
+  listsEl.appendChild(listsTitle);
+
+  function renderFreeListSection(name, bins) {
+    const keys = Object.keys(bins).sort((a, b) => Number(a) - Number(b));
+    if (keys.length === 0) return;
+
+    keys.forEach(size => {
+      const addrs = bins[size];
+      if (!addrs || addrs.length === 0) return;
+      const row = document.createElement('div');
+      row.className = 'free-list-row';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'free-list-name';
+      nameEl.textContent = name + '[' + size + ']';
+      row.appendChild(nameEl);
+
+      addrs.forEach((addr, i) => {
+        if (i > 0) {
+          const arrow = document.createElement('span');
+          arrow.className = 'free-list-arrow';
+          arrow.textContent = ' \u2192 ';
+          row.appendChild(arrow);
+        }
+        const node = document.createElement('span');
+        node.className = 'free-list-node';
+        const addrEl = document.createElement('span');
+        addrEl.className = 'free-list-addr';
+        addrEl.textContent = hex8(heap.baseAddr + addr);
+        node.appendChild(addrEl);
+        row.appendChild(node);
+      });
+
+      const arrow = document.createElement('span');
+      arrow.className = 'free-list-arrow';
+      arrow.textContent = ' \u2192 ';
+      row.appendChild(arrow);
+      const nilEl = document.createElement('span');
+      nilEl.className = 'free-list-nil';
+      nilEl.textContent = 'NULL';
+      row.appendChild(nilEl);
+
+      listsEl.appendChild(row);
+    });
+  }
+
+  renderFreeListSection('tcache', freeLists.tcache);
+  renderFreeListSection('fastbin', freeLists.fastbins);
+
+  if (freeLists.unsorted.length > 0) {
+    const row = document.createElement('div');
+    row.className = 'free-list-row';
+    const nameEl = document.createElement('span');
+    nameEl.className = 'free-list-name';
+    nameEl.textContent = 'unsorted';
+    row.appendChild(nameEl);
+
+    freeLists.unsorted.forEach((addr, i) => {
+      if (i > 0) {
+        const arrow = document.createElement('span');
+        arrow.className = 'free-list-arrow';
+        arrow.textContent = ' \u2192 ';
+        row.appendChild(arrow);
+      }
+      const node = document.createElement('span');
+      node.className = 'free-list-node';
+      const addrEl = document.createElement('span');
+      addrEl.className = 'free-list-addr';
+      addrEl.textContent = hex8(heap.baseAddr + addr);
+      node.appendChild(addrEl);
+      row.appendChild(node);
+    });
+
+    const arrow = document.createElement('span');
+    arrow.className = 'free-list-arrow';
+    arrow.textContent = ' \u2192 ';
+    row.appendChild(arrow);
+    const nilEl = document.createElement('span');
+    nilEl.className = 'free-list-nil';
+    nilEl.textContent = 'NULL';
+    row.appendChild(nilEl);
+
+    listsEl.appendChild(row);
+  }
+
+  el.appendChild(listsEl);
+
+  // --- Function pointer table ---
+  const ptrKeys = Object.keys(heap.funcPtrs);
+  if (ptrKeys.length > 0) {
+    const tbl = document.createElement('div');
+    tbl.className = 'func-ptr-table';
+    const tblTitle = document.createElement('h4');
+    tblTitle.textContent = 'Function Pointers';
+    tbl.appendChild(tblTitle);
+
+    ptrKeys.forEach(name => {
+      const entry = heap.funcPtrs[name];
+      const row = document.createElement('div');
+      row.className = 'func-ptr-row';
+
+      const nameEl = document.createElement('span');
+      nameEl.className = 'func-ptr-name';
+      nameEl.textContent = name;
+      row.appendChild(nameEl);
+
+      const valEl = document.createElement('span');
+      valEl.className = 'func-ptr-val';
+      const currentVal = entry.current !== undefined ? entry.current : entry.original;
+      valEl.textContent = hex8(currentVal);
+      if (entry.original !== undefined && currentVal !== entry.original) {
+        valEl.classList.add('overwritten');
+      }
+      row.appendChild(valEl);
+
+      tbl.appendChild(row);
+    });
+
+    el.appendChild(tbl);
+  }
+}
+
+function renderHeapAndStack() {
+  // Split view: heap on top, stack on bottom
+  renderHeap();
+  renderStack();
+}
+
+function renderViz() {
+  const ex = typeof state.currentEx === 'number' ? EXERCISES[state.currentEx] : null;
+  const vizMode = ex ? (ex.vizMode || 'stack') : 'stack';
+
+  const stackEl = document.getElementById('stack-viz');
+  const heapEl = document.getElementById('heap-viz');
+
+  if (vizMode === 'heap') {
+    if (stackEl) stackEl.style.display = 'none';
+    if (heapEl) heapEl.style.display = '';
+    renderHeap();
+  } else if (vizMode === 'both') {
+    if (stackEl) stackEl.style.display = '';
+    if (heapEl) heapEl.style.display = '';
+    renderHeapAndStack();
+  } else {
+    // Default: stack only
+    if (stackEl) stackEl.style.display = '';
+    if (heapEl) heapEl.style.display = 'none';
+    renderStack();
+  }
+}
+
 function renderInput(ex) {
   const area = document.getElementById('input-area');
   const builder = document.getElementById('payload-builder');
@@ -1623,6 +2123,13 @@ function loadExercise(idx) {
     state.sim.totalSize = newTotal;
   }
 
+  // Initialize heap if exercise uses it
+  state.heap = null;
+  if (ex.vizMode === 'heap' || ex.vizMode === 'both') {
+    state.heap = new HeapSim(ex.heapSize || 512);
+    if (ex.heapSetup) ex.heapSetup(state.heap);
+  }
+
   state.stepIndex = 0;
   state.execSteps = null;
   state.execIndex = 0;
@@ -1697,7 +2204,7 @@ function loadExercise(idx) {
 
   renderNav();
   renderSource(ex);
-  renderStack();
+  renderViz();
   renderInput(ex);
   renderLog();
 }
@@ -1733,7 +2240,7 @@ function loadSandbox() {
   ];
   renderSource({ desc: '', code: state.sandboxCode });
 
-  renderStack();
+  renderViz();
 
   const area = document.getElementById('input-area');
   area.innerHTML = `
@@ -1811,7 +2318,7 @@ function sbUpdate() {
   }
   syms.innerHTML = html;
 
-  renderStack();
+  renderViz();
   renderLog();
 }
 
@@ -1841,7 +2348,7 @@ function onPayloadInput() {
     bytes = strToBytes(raw);
   }
   state.sim.writeInput(bytes);
-  renderStack();
+  renderViz();
 }
 
 function onIntOverflowInput() {
@@ -1878,7 +2385,7 @@ function onIntOverflowInput() {
     state.execSteps = null;
     state.execIndex = 0;
     state.inputMode = 'hex';
-    renderStack();
+    renderViz();
   } else {
     indicator.innerHTML = '<span style="color:var(--text-dim)">No overflow — buffer is ' + total + ' bytes.</span>';
     if (payloadDiv) payloadDiv.style.display = 'none';
@@ -2207,7 +2714,7 @@ function execCurrentStep() {
       log('error', '*** stack smashing detected! *** The tripwire was <span class="log-addr">' + hex8(sim.canaryValue) +
         '</span> but is now <span class="log-addr">' + hex8(sim.getCanary()) + '</span>');
       log('error', 'Program aborted! You need to put the correct canary value at position ' + sim.bufSize + ' in your payload so the tripwire stays intact.');
-      renderStack(); renderLog(); updateStepCounter();
+      renderViz(); renderLog(); updateStepCounter();
       state.execSteps = null;
       highlightExecLine(-1);
       return false;
@@ -2517,7 +3024,7 @@ function execCurrentStep() {
     }
   }
 
-  renderStack();
+  renderViz();
   renderLog();
   if (ex && (ex.rop || ex.srop)) renderRegisters();
   state.execIndex++;
@@ -2564,7 +3071,7 @@ function doStep() {
       log(step.log[0], step.log[1]);
     }
     state.stepIndex++;
-    renderStack(); renderLog();
+    renderViz(); renderLog();
     if (state.stepIndex >= ex.steps.length) {
       state.completed.add(state.currentEx);
       saveProgress();
@@ -2586,7 +3093,7 @@ function doStep() {
     const exOrSandbox = ex || {code: state.sandboxCode || [], aslr: document.getElementById('sb-aslr')?.checked, canary: document.getElementById('sb-canary')?.checked, nx: document.getElementById('sb-nx')?.checked};
     state.execSteps = generateExecSteps(exOrSandbox, bytes);
     state.execIndex = 0;
-    renderStack();
+    renderViz();
     updateStepCounter();
   }
 
