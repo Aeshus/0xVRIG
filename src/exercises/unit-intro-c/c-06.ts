@@ -25,7 +25,7 @@ const c06: Exercise = {
   steps: [
     {
       action: 'init',
-      log: ['info', 'So far we have seen local variables on the stack. But sometimes you need memory that outlives the current function, or whose size you do not know at compile time. That is what the heap is for.'],
+      log: ['info', 'The stack holds local variables that are automatically created and destroyed with each function call. The heap is a separate memory region for dynamic allocation -- memory you request at runtime with malloc() and release with free(). Stack memory is fast but limited and temporary; heap memory is flexible but you must manage it yourself.'],
     },
     {
       action: 'malloc',

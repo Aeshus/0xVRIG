@@ -10,7 +10,7 @@ function retAddrInMain(symbols: Record<string, number>): number {
 }
 
 export default function StepControls() {
-  const { state, dispatch, stackSim, currentExercise } = useExerciseContext();
+  const { state, dispatch, stackSim, heapSim, currentExercise } = useExerciseContext();
 
   if (!currentExercise || !currentExercise.steps) return null;
 
@@ -26,28 +26,61 @@ export default function StepControls() {
 
     const step = currentExercise.steps[state.stepIndex];
     const sim = stackSim.current;
-    if (!sim) return;
+    const heap = heapSim.current;
 
-    if (step.region === 'ret') {
-      const ret = retAddrInMain(state.symbols);
-      sim._writeLE(sim.bufSize + sim.canarySize + sim.ebpSize, ret, sim.retSize);
-      sim.markRegion(sim.bufSize + sim.canarySize + sim.ebpSize, sim.totalSize);
-      dispatch({
-        type: 'LOG',
-        cls: 'action',
-        msg: `Calling vuln() \u2014 saving the go-back address <span class="log-addr">${hex8(ret)}</span> so we know where to return`,
-      });
-    } else if (step.region === 'ebp') {
-      sim._writeLE(sim.bufSize + sim.canarySize, 0xbfff0200, sim.ebpSize);
-      sim.markRegion(sim.bufSize + sim.canarySize, sim.bufSize + sim.canarySize + sim.ebpSize);
-      dispatch({ type: 'LOG', cls: 'action', msg: step.log[1] });
-    } else if (step.region === 'buffer') {
-      for (let i = 0; i < sim.bufSize; i++) sim.memory[i] = 0;
-      sim.markRegion(0, sim.bufSize);
-      dispatch({ type: 'LOG', cls: 'action', msg: step.log[1] });
-    } else if (step.region === 'all') {
-      sim.clearHighlight();
-      dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+    if (step.action) {
+      switch (step.action) {
+        case 'malloc':
+          if (heap && step.size != null) {
+            const result = heap.malloc(step.size);
+            if (result && step.name) {
+              dispatch({ type: 'SET_HEAP_NAME', name: step.name, addr: result.addr });
+            }
+          }
+          dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+          break;
+        case 'free':
+          if (heap && step.name) {
+            const addr = state.heapNames[step.name];
+            if (addr !== undefined) {
+              heap.free(addr);
+            }
+          }
+          dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+          break;
+        case 'done':
+          dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+          break;
+        default:
+          dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+          break;
+      }
+    } else if (step.region) {
+      if (!sim) {
+        dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+      } else if (step.region === 'ret') {
+        const ret = retAddrInMain(state.symbols);
+        sim._writeLE(sim.bufSize + sim.canarySize + sim.ebpSize, ret, sim.retSize);
+        sim.markRegion(sim.bufSize + sim.canarySize + sim.ebpSize, sim.totalSize);
+        dispatch({
+          type: 'LOG',
+          cls: 'action',
+          msg: `Calling vuln() \u2014 saving the go-back address <span class="log-addr">${hex8(ret)}</span> so we know where to return`,
+        });
+      } else if (step.region === 'ebp') {
+        sim._writeLE(sim.bufSize + sim.canarySize, 0xbfff0200, sim.ebpSize);
+        sim.markRegion(sim.bufSize + sim.canarySize, sim.bufSize + sim.canarySize + sim.ebpSize);
+        dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+      } else if (step.region === 'buffer') {
+        for (let i = 0; i < sim.bufSize; i++) sim.memory[i] = 0;
+        sim.markRegion(0, sim.bufSize);
+        dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+      } else if (step.region === 'all') {
+        sim.clearHighlight();
+        dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+      } else {
+        dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+      }
     } else {
       dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
     }
@@ -56,7 +89,6 @@ export default function StepControls() {
     dispatch({ type: 'INCREMENT_STEP' });
     dispatch({ type: 'BUMP_VIZ' });
 
-    // Check if exercise is now complete (after incrementing)
     if (state.stepIndex + 1 >= currentExercise.steps.length) {
       dispatch({ type: 'EXERCISE_COMPLETED', exerciseId: currentExercise.id });
     }
@@ -66,14 +98,15 @@ export default function StepControls() {
     if (!currentExercise) return;
     const sim = stackSim.current;
 
-    // Re-create sim
-    const newSim = new StackSim({
-      bufSize: currentExercise.bufSize ?? 16,
-      retAddr: retAddrInMain(state.symbols),
-      savedEbp: 0xbfff0200,
-    });
-    newSim.clearBlank();
-    stackSim.current = newSim;
+    if (sim) {
+      const newSim = new StackSim({
+        bufSize: currentExercise.bufSize ?? 16,
+        retAddr: retAddrInMain(state.symbols),
+        savedEbp: 0xbfff0200,
+      });
+      newSim.clearBlank();
+      stackSim.current = newSim;
+    }
 
     dispatch({ type: 'SET_STEP_INDEX', index: 0 });
     dispatch({ type: 'SET_EXEC_LINE', line: -1 });
@@ -91,7 +124,7 @@ export default function StepControls() {
       </button>
       {allDone && (
         <span style={{ color: 'var(--green)', fontSize: '12px', alignSelf: 'center' }}>
-          All steps complete \u2713
+          All steps complete {'\u2713'}
         </span>
       )}
     </div>

@@ -178,6 +178,7 @@ export default function Sidebar() {
                             const isCompleted = state.completed.has(exId);
                             const numMatch = exId.match(/(\d+)$/);
                             const num = numMatch ? numMatch[1].padStart(2, '0') : '??';
+                            const displayTitle = ex.title.replace(/^\d+:\s*/, '');
 
                             return (
                               <button
@@ -187,7 +188,7 @@ export default function Sidebar() {
                                 title={ex.title}
                               >
                                 <span className="sidebar-exercise-num">{num}</span>
-                                <span className="sidebar-exercise-title">{ex.title}</span>
+                                <span className="sidebar-exercise-title">{displayTitle}</span>
                                 {isCompleted && (
                                   <span className="sidebar-exercise-check">{'\u2713'}</span>
                                 )}
