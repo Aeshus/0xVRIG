@@ -1,11 +1,11 @@
 'use client';
 
-import { X86Emulator } from '@/engine/x86/emulator';
+import { Emulator } from '@/engine/emulator-interface';
 import { AsmInstruction } from '@/engine/x86/types';
 import styles from './AsmViz.module.css';
 
 interface AsmVizProps {
-  emulator: X86Emulator | null;
+  emulator: Emulator | null;
   renderKey: number;
   changedRegs?: Set<string>;
 }

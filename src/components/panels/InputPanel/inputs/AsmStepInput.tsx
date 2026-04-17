@@ -2,11 +2,11 @@
 
 import { useState, useCallback, useRef } from 'react';
 import { useExerciseContext } from '@/state/ExerciseContext';
-import { X86Emulator } from '@/engine/x86/emulator';
+import { Emulator } from '@/engine/emulator-interface';
 import { StepResult } from '@/engine/x86/types';
 
 interface AsmStepInputProps {
-  emulator: X86Emulator | null;
+  emulator: Emulator | null;
   onStepResult?: (result: StepResult) => void;
 }
 

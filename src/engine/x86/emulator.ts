@@ -3,6 +3,7 @@ import {
   Operand, RegisterDiff, StepResult, Architecture,
   X86_REGISTERS, X64_REGISTERS, ALL_REGISTERS,
 } from './types';
+import { Emulator, EmulatorState } from '../emulator-interface';
 
 function defaultFlags(): X86Flags {
   return { ZF: false, SF: false, CF: false, OF: false };
@@ -15,7 +16,7 @@ function defaultRegisters(arch: Architecture): Record<string, number> {
   return regs;
 }
 
-export class X86Emulator {
+export class X86Emulator implements Emulator {
   state: X86State;
   instructions: AsmInstruction[];
   memory: Map<number, number>;

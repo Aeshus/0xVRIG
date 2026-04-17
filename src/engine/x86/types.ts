@@ -3,9 +3,10 @@ export type X86Register =
   | 'rax' | 'rbx' | 'rcx' | 'rdx' | 'rsp' | 'rbp' | 'rsi' | 'rdi' | 'rip'
   | 'r8' | 'r9' | 'r10' | 'r11' | 'r12' | 'r13' | 'r14' | 'r15';
 
-export type Architecture = 'x86' | 'x86-64';
+export type Architecture = 'x86' | 'x86-64' | 'arm' | 'mips';
 
 export interface X86Flags {
+  [key: string]: boolean;
   ZF: boolean;
   SF: boolean;
   CF: boolean;
