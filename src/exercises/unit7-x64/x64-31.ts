@@ -1,0 +1,58 @@
+import { Exercise } from '../types';
+import { AsmInstruction } from '@/engine/x86/types';
+
+const instructions: AsmInstruction[] = [
+  { addr: 0x00400000, bytes: [0x48, 0xb8, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41], mnemonic: 'mov', operands: 'rax, 0x41414141', comment: 'Overflow fills buffer with As' },
+  { addr: 0x0040000a, bytes: [0x50], mnemonic: 'push', operands: 'rax', comment: 'Simulating buffer write to stack' },
+  { addr: 0x0040000b, bytes: [0x50], mnemonic: 'push', operands: 'rax', comment: 'More As...' },
+  { addr: 0x0040000c, bytes: [0x50], mnemonic: 'push', operands: 'rax', comment: 'Overwriting saved RBP' },
+  { addr: 0x0040000d, bytes: [0x48, 0xb8, 0x37, 0x13, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00], mnemonic: 'mov', operands: 'rax, 0x00401337', comment: 'gadget1: pop rdi; ret' },
+  { addr: 0x00400017, bytes: [0x50], mnemonic: 'push', operands: 'rax', comment: 'Overwrite return addr → gadget1' },
+  { addr: 0x00400018, bytes: [0x48, 0xb8, 0x00, 0x20, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00], mnemonic: 'mov', operands: 'rax, 0x00402000', comment: 'Addr of "/bin/sh" string' },
+  { addr: 0x00400022, bytes: [0x50], mnemonic: 'push', operands: 'rax', comment: 'This gets popped into RDI by gadget1' },
+  { addr: 0x00400023, bytes: [0x48, 0xb8, 0x50, 0x10, 0x40, 0x00, 0x00, 0x00, 0x00, 0x00], mnemonic: 'mov', operands: 'rax, 0x00401050', comment: 'Address of system()' },
+  { addr: 0x0040002d, bytes: [0x50], mnemonic: 'push', operands: 'rax', comment: 'gadget1 RETs here → system("/bin/sh")' },
+  { addr: 0x0040002e, bytes: [0xf4], mnemonic: 'hlt', operands: '', comment: 'ROP payload ready on stack!' },
+];
+
+export const x6431: Exercise = {
+  id: 'x64-31',
+  unitId: 'unit7-x64',
+  title: 'x64 ROP',
+  desc: '<b>Goal:</b> x64 ROP differs from x86 because the first argument goes in <b>RDI</b>, not on the stack. You need a <code>pop rdi; ret</code> gadget to control the argument to system(). This exercise shows building a x64 ROP chain: <code>pop rdi; ret → "/bin/sh" → system()</code>.',
+  source: {
+    c: [
+      { text: '// x64 ROP Chain', cls: 'comment' },
+      { text: '// x86 ROP: system() reads arg from stack', cls: 'comment' },
+      { text: '// x64 ROP: system() reads arg from RDI', cls: 'comment' },
+      { text: '// → Need "pop rdi; ret" gadget!', cls: 'comment' },
+      { text: '', cls: '' },
+      { text: '// Stack layout after overflow:', cls: 'comment' },
+      { text: '//   [buf padding ...]', cls: 'comment' },
+      { text: '//   [saved RBP overwrite]', cls: 'comment' },
+      { text: '//   [pop rdi; ret]  ← return addr', cls: 'comment' },
+      { text: '//   ["/bin/sh" addr] ← popped into RDI', cls: 'comment' },
+      { text: '//   [system() addr]  ← ret target', cls: 'comment' },
+      { text: '', cls: '' },
+      { text: '; Building the payload on stack:', cls: 'label' },
+      { text: 'mov rax, 0x41414141 ; padding', cls: 'asm' },
+      { text: 'push rax            ; buf', cls: 'asm' },
+      { text: 'push rax            ; buf', cls: 'asm' },
+      { text: 'push rax            ; overwrite RBP', cls: 'asm' },
+      { text: 'mov rax, 0x00401337 ; pop rdi;ret', cls: 'asm' },
+      { text: 'push rax            ; overwrite ret addr', cls: 'asm' },
+      { text: 'mov rax, 0x00402000 ; "/bin/sh"', cls: 'asm' },
+      { text: 'push rax            ; arg for pop rdi', cls: 'asm' },
+      { text: 'mov rax, 0x00401050 ; system()', cls: 'asm' },
+      { text: 'push rax            ; final target', cls: 'asm' },
+      { text: 'hlt', cls: 'asm' },
+    ],
+  },
+  mode: 'asm-step',
+  vizMode: 'asm',
+  asmArch: 'x86-64',
+  asmInstructions: instructions,
+  check: () => true,
+  winTitle: 'x64 ROP Chain!',
+  winMsg: 'You can construct ROP chains using pop rdi; ret gadgets on x64.',
+};

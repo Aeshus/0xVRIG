@@ -6,6 +6,7 @@ import { unit3Exercises } from './unit3-stack-ii';
 import { unit4Exercises } from './unit4-heap';
 import { unit5Exercises } from './unit5-heap-ii';
 import { unit6Exercises } from './unit6-final';
+import { unit7Exercises } from './unit7-x64';
 
 // All exercises from all units, flattened
 const ALL_EXERCISES: Exercise[] = [
@@ -16,6 +17,7 @@ const ALL_EXERCISES: Exercise[] = [
   ...unit4Exercises,
   ...unit5Exercises,
   ...unit6Exercises,
+  ...unit7Exercises,
 ];
 
 // Exercise lookup map
@@ -32,7 +34,7 @@ export const UNITS: Unit[] = [
   { id: 'unit4-heap', name: 'HEAP', exerciseIds: ['heap-15', 'heap-16', 'heap-17', 'heap-18'] },
   { id: 'unit5-heap-ii', name: 'HEAP II', exerciseIds: ['heap2-19', 'heap2-20', 'heap2-21', 'heap2-22', 'heap2-23', 'heap2-24', 'heap2-25', 'heap2-26'] },
   { id: 'unit6-final', name: 'FINAL', exerciseIds: ['final-27', 'final-28'] },
-  { id: 'unit7-x64', name: 'x86-64', exerciseIds: [] },
+  { id: 'unit7-x64', name: 'x86-64', exerciseIds: ['x64-29', 'x64-30', 'x64-31', 'x64-32', 'x64-33', 'x64-34', 'x64-35', 'x64-36'] },
   { id: 'unit8-win-stack', name: 'WIN STACK', exerciseIds: [] },
   { id: 'unit9-win-heap', name: 'WIN HEAP', exerciseIds: [] },
   { id: 'unit10-challenges', name: 'CHALLENGES', exerciseIds: [] },
@@ -98,6 +100,15 @@ export const BADGES: Badge[] = [
     name: 'Full Chain',
     icon: '\u{1F517}',
     condition: (completed) => completed.has('final-27'),
+  },
+  {
+    id: 'x64-master',
+    name: 'x64 Master',
+    icon: '\u{1F4BB}',
+    condition: (completed) => {
+      const unit = UNITS.find(u => u.id === 'unit7-x64');
+      return !!unit && unit.exerciseIds.length > 0 && unit.exerciseIds.every(id => completed.has(id));
+    },
   },
   {
     id: 'certified-hacker',

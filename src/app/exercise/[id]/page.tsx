@@ -240,6 +240,7 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
         exercise.asmInstructions,
         exercise.asmInitialRegs,
         exercise.asmStackBase ?? 0xbfff0200,
+        exercise.asmArch ?? 'x86',
       );
       if (exercise.asmInitialMemory) {
         for (const { addr, value, size } of exercise.asmInitialMemory) {

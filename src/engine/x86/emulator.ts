@@ -1,17 +1,17 @@
 import {
   X86Register, X86Flags, X86State, AsmInstruction,
-  Operand, RegisterDiff, StepResult,
+  Operand, RegisterDiff, StepResult, Architecture,
+  X86_REGISTERS, X64_REGISTERS, ALL_REGISTERS,
 } from './types';
-
-const REGISTERS: X86Register[] = ['eax', 'ebx', 'ecx', 'edx', 'esp', 'ebp', 'esi', 'edi', 'eip'];
 
 function defaultFlags(): X86Flags {
   return { ZF: false, SF: false, CF: false, OF: false };
 }
 
-function defaultRegisters(): Record<X86Register, number> {
-  const regs = {} as Record<X86Register, number>;
-  for (const r of REGISTERS) regs[r] = 0;
+function defaultRegisters(arch: Architecture): Record<string, number> {
+  const regs: Record<string, number> = {};
+  const list = arch === 'x86' ? X86_REGISTERS : X64_REGISTERS;
+  for (const r of list) regs[r] = 0;
   return regs;
 }
 
@@ -20,31 +20,48 @@ export class X86Emulator {
   instructions: AsmInstruction[];
   memory: Map<number, number>;
   private instrMap: Map<number, number>;
+  private wordSize: number;
+  private spReg: string;
+  private bpReg: string;
+  private ipReg: string;
+  private registerNames: readonly string[];
 
-  constructor(instructions: AsmInstruction[], initialRegs?: Partial<Record<X86Register, number>>, stackBase = 0xbfff0200) {
+  constructor(
+    instructions: AsmInstruction[],
+    initialRegs?: Record<string, number>,
+    stackBase = 0xbfff0200,
+    arch: Architecture = 'x86',
+  ) {
     this.instructions = instructions;
     this.instrMap = new Map();
     for (let i = 0; i < instructions.length; i++) {
       this.instrMap.set(instructions[i].addr, i);
     }
 
+    this.wordSize = arch === 'x86' ? 4 : 8;
+    this.spReg = arch === 'x86' ? 'esp' : 'rsp';
+    this.bpReg = arch === 'x86' ? 'ebp' : 'rbp';
+    this.ipReg = arch === 'x86' ? 'eip' : 'rip';
+    this.registerNames = arch === 'x86' ? X86_REGISTERS : X64_REGISTERS;
+
     this.memory = new Map();
     this.state = {
-      registers: { ...defaultRegisters(), ...initialRegs },
+      registers: { ...defaultRegisters(arch), ...(initialRegs ?? {}) },
       flags: defaultFlags(),
       stack: [],
       stackBase,
       halted: false,
+      arch,
     };
 
-    if (!initialRegs?.eip && instructions.length > 0) {
-      this.state.registers.eip = instructions[0].addr;
+    if (initialRegs?.[this.ipReg] === undefined && instructions.length > 0) {
+      this.state.registers[this.ipReg] = instructions[0].addr;
     }
-    if (!initialRegs?.esp) {
-      this.state.registers.esp = stackBase;
+    if (initialRegs?.[this.spReg] === undefined) {
+      this.state.registers[this.spReg] = stackBase;
     }
-    if (!initialRegs?.ebp) {
-      this.state.registers.ebp = stackBase;
+    if (initialRegs?.[this.bpReg] === undefined) {
+      this.state.registers[this.bpReg] = stackBase;
     }
   }
 
@@ -52,8 +69,8 @@ export class X86Emulator {
     return v >>> 0;
   }
 
-  private s32(v: number): number {
-    return v | 0;
+  private mask(v: number): number {
+    return this.wordSize === 4 ? v >>> 0 : v;
   }
 
   readMem(addr: number, size: number): number {
@@ -70,10 +87,14 @@ export class X86Emulator {
     }
   }
 
+  private isRegister(s: string): boolean {
+    return ALL_REGISTERS.includes(s as X86Register);
+  }
+
   parseOperand(s: string): Operand {
     s = s.trim();
 
-    if (REGISTERS.includes(s as X86Register)) {
+    if (this.isRegister(s)) {
       return { type: 'reg', reg: s as X86Register };
     }
 
@@ -81,9 +102,11 @@ export class X86Emulator {
       return this.parseMemOperand(s.slice(1, -1).trim());
     }
 
-    if (s.startsWith('dword [') || s.startsWith('DWORD [')) {
+    const sizePrefix = s.match(/^(byte|word|dword|qword)\s+\[/i);
+    if (sizePrefix) {
       const inner = s.slice(s.indexOf('[') + 1, -1).trim();
-      return { ...this.parseMemOperand(inner), size: 4 } as Operand;
+      const sizes: Record<string, number> = { byte: 1, word: 2, dword: 4, qword: 8 };
+      return { ...this.parseMemOperand(inner), size: sizes[sizePrefix[1].toLowerCase()] ?? this.wordSize } as Operand;
     }
 
     const num = this.parseNumber(s);
@@ -103,7 +126,6 @@ export class X86Emulator {
 
   private parseMemOperand(inner: string): Operand {
     const result: Operand = { type: 'mem' };
-
     const parts = inner.replace(/\s/g, '').match(/([+-]?[a-z0-9*]+)/gi) ?? [];
 
     for (const part of parts) {
@@ -111,22 +133,20 @@ export class X86Emulator {
 
       if (clean.includes('*')) {
         const [a, b] = clean.split('*');
-        if (REGISTERS.includes(a as X86Register)) {
+        if (this.isRegister(a)) {
           (result as any).index = a;
           (result as any).scale = parseInt(b);
         } else {
           (result as any).index = b;
           (result as any).scale = parseInt(a);
         }
-      } else if (REGISTERS.includes(clean as X86Register)) {
+      } else if (this.isRegister(clean)) {
         if (!(result as any).base) {
           (result as any).base = clean;
         } else {
           (result as any).index = clean;
           (result as any).scale = 1;
         }
-      } else if (REGISTERS.includes(clean.replace(/^-/, '') as X86Register)) {
-        // shouldn't happen but handle -reg
       } else {
         const num = this.parseNumber(clean);
         if (!isNaN(num)) {
@@ -141,24 +161,24 @@ export class X86Emulator {
   private resolveOperandAddr(op: Operand): number {
     if (op.type !== 'mem') throw new Error('Not a memory operand');
     let addr = 0;
-    if (op.base) addr += this.state.registers[op.base];
-    if (op.index) addr += this.state.registers[op.index] * (op.scale ?? 1);
+    if (op.base) addr += this.state.registers[op.base] ?? 0;
+    if (op.index) addr += (this.state.registers[op.index] ?? 0) * (op.scale ?? 1);
     if (op.disp) addr += op.disp;
     return this.u32(addr);
   }
 
   private readOperand(op: Operand): number {
-    if (op.type === 'reg') return this.state.registers[op.reg];
+    if (op.type === 'reg') return this.state.registers[op.reg] ?? 0;
     if (op.type === 'imm') return op.value;
-    return this.readMem(this.resolveOperandAddr(op), op.size ?? 4);
+    return this.readMem(this.resolveOperandAddr(op), op.size ?? this.wordSize);
   }
 
   private writeOperand(op: Operand, value: number): void {
-    value = this.u32(value);
+    value = this.mask(value);
     if (op.type === 'reg') {
       this.state.registers[op.reg] = value;
     } else if (op.type === 'mem') {
-      this.writeMem(this.resolveOperandAddr(op), value, op.size ?? 4);
+      this.writeMem(this.resolveOperandAddr(op), value, op.size ?? this.wordSize);
     } else {
       throw new Error('Cannot write to immediate');
     }
@@ -171,18 +191,18 @@ export class X86Emulator {
   }
 
   private push(value: number): void {
-    this.state.registers.esp = this.u32(this.state.registers.esp - 4);
-    this.writeMem(this.state.registers.esp, value, 4);
+    this.state.registers[this.spReg] = this.mask(this.state.registers[this.spReg] - this.wordSize);
+    this.writeMem(this.state.registers[this.spReg], value, this.wordSize);
   }
 
   private pop(): number {
-    const val = this.readMem(this.state.registers.esp, 4);
-    this.state.registers.esp = this.u32(this.state.registers.esp + 4);
+    const val = this.readMem(this.state.registers[this.spReg], this.wordSize);
+    this.state.registers[this.spReg] = this.mask(this.state.registers[this.spReg] + this.wordSize);
     return val;
   }
 
   getCurrentInstruction(): AsmInstruction | null {
-    const idx = this.instrMap.get(this.state.registers.eip);
+    const idx = this.instrMap.get(this.state.registers[this.ipReg]);
     if (idx === undefined) return null;
     return this.instructions[idx];
   }
@@ -219,7 +239,7 @@ export class X86Emulator {
     this.readMem = origReadMem;
 
     const diffs: RegisterDiff[] = [];
-    for (const r of REGISTERS) {
+    for (const r of this.registerNames) {
       if (prevRegs[r] !== this.state.registers[r]) {
         diffs.push({ reg: r, oldValue: prevRegs[r], newValue: this.state.registers[r] });
       }
@@ -247,7 +267,7 @@ export class X86Emulator {
 
   private executeInstruction(instr: AsmInstruction): void {
     const mnemonic = instr.mnemonic.toLowerCase();
-    const nextAddr = this.u32(instr.addr + instr.bytes.length);
+    const nextAddr = this.mask(instr.addr + instr.bytes.length);
 
     const ops = instr.operands
       ? instr.operands.split(',').map(s => s.trim()).filter(Boolean)
@@ -255,14 +275,14 @@ export class X86Emulator {
 
     switch (mnemonic) {
       case 'nop':
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
 
       case 'mov': {
         const dst = this.parseOperand(ops[0]);
         const src = this.parseOperand(ops[1]);
         this.writeOperand(dst, this.readOperand(src));
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -272,21 +292,21 @@ export class X86Emulator {
         if (src.type === 'mem') {
           this.writeOperand(dst, this.resolveOperandAddr(src));
         }
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
       case 'push': {
         const src = this.parseOperand(ops[0]);
         this.push(this.readOperand(src));
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
       case 'pop': {
         const dst = this.parseOperand(ops[0]);
         this.writeOperand(dst, this.pop());
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -300,7 +320,7 @@ export class X86Emulator {
         this.updateFlags(result);
         this.state.flags.CF = result > 0xffffffff;
         this.state.flags.OF = ((a ^ result) & (b ^ result) & 0x80000000) !== 0;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -314,7 +334,7 @@ export class X86Emulator {
         this.updateFlags(result);
         this.state.flags.CF = a < b;
         this.state.flags.OF = ((a ^ b) & (a ^ this.u32(result)) & 0x80000000) !== 0;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -325,7 +345,7 @@ export class X86Emulator {
         this.writeOperand(dst, result);
         this.updateFlags(result);
         this.state.flags.OF = a === 0x7fffffff;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -336,19 +356,21 @@ export class X86Emulator {
         this.writeOperand(dst, result);
         this.updateFlags(result);
         this.state.flags.OF = a === 0x80000000;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
       case 'mul': {
         const src = this.parseOperand(ops[0]);
-        const a = this.state.registers.eax;
+        const accReg = this.state.arch === 'x86' ? 'eax' : 'rax';
+        const hiReg = this.state.arch === 'x86' ? 'edx' : 'rdx';
+        const a = this.state.registers[accReg];
         const b = this.readOperand(src);
         const result = Math.imul(a, b) >>> 0;
-        this.state.registers.eax = result;
-        this.state.registers.edx = 0;
+        this.state.registers[accReg] = result;
+        this.state.registers[hiReg] = 0;
         this.updateFlags(result);
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -356,18 +378,18 @@ export class X86Emulator {
         if (ops.length === 2) {
           const dst = this.parseOperand(ops[0]);
           const src = this.parseOperand(ops[1]);
-          const result = Math.imul(this.s32(this.readOperand(dst)), this.s32(this.readOperand(src)));
+          const result = Math.imul(this.readOperand(dst) | 0, this.readOperand(src) | 0);
           this.writeOperand(dst, result);
           this.updateFlags(result);
         } else if (ops.length === 3) {
           const dst = this.parseOperand(ops[0]);
           const src = this.parseOperand(ops[1]);
           const imm = this.parseOperand(ops[2]);
-          const result = Math.imul(this.s32(this.readOperand(src)), this.s32(this.readOperand(imm)));
+          const result = Math.imul(this.readOperand(src) | 0, this.readOperand(imm) | 0);
           this.writeOperand(dst, result);
           this.updateFlags(result);
         }
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -379,7 +401,7 @@ export class X86Emulator {
         this.updateFlags(result);
         this.state.flags.CF = false;
         this.state.flags.OF = false;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -391,7 +413,7 @@ export class X86Emulator {
         this.updateFlags(result);
         this.state.flags.CF = false;
         this.state.flags.OF = false;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -403,14 +425,14 @@ export class X86Emulator {
         this.updateFlags(result);
         this.state.flags.CF = false;
         this.state.flags.OF = false;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
       case 'not': {
         const dst = this.parseOperand(ops[0]);
         this.writeOperand(dst, ~this.readOperand(dst));
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -422,7 +444,7 @@ export class X86Emulator {
         const result = val << cnt;
         this.writeOperand(dst, result);
         this.updateFlags(result);
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -433,7 +455,7 @@ export class X86Emulator {
         const result = val >>> cnt;
         this.writeOperand(dst, result);
         this.updateFlags(result);
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -444,7 +466,7 @@ export class X86Emulator {
         this.updateFlags(result);
         this.state.flags.CF = a < b;
         this.state.flags.OF = ((a ^ b) & (a ^ this.u32(result)) & 0x80000000) !== 0;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -455,86 +477,51 @@ export class X86Emulator {
         this.updateFlags(result);
         this.state.flags.CF = false;
         this.state.flags.OF = false;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
       case 'jmp': {
         const target = this.parseOperand(ops[0]);
-        this.state.registers.eip = this.readOperand(target);
+        this.state.registers[this.ipReg] = this.readOperand(target);
         break;
       }
 
-      case 'je':
-      case 'jz':
-        this.conditionalJump(ops[0], nextAddr, this.state.flags.ZF);
-        break;
-
-      case 'jne':
-      case 'jnz':
-        this.conditionalJump(ops[0], nextAddr, !this.state.flags.ZF);
-        break;
-
-      case 'jg':
-      case 'jnle':
-        this.conditionalJump(ops[0], nextAddr, !this.state.flags.ZF && this.state.flags.SF === this.state.flags.OF);
-        break;
-
-      case 'jge':
-      case 'jnl':
-        this.conditionalJump(ops[0], nextAddr, this.state.flags.SF === this.state.flags.OF);
-        break;
-
-      case 'jl':
-      case 'jnge':
-        this.conditionalJump(ops[0], nextAddr, this.state.flags.SF !== this.state.flags.OF);
-        break;
-
-      case 'jle':
-      case 'jng':
-        this.conditionalJump(ops[0], nextAddr, this.state.flags.ZF || this.state.flags.SF !== this.state.flags.OF);
-        break;
-
-      case 'ja':
-      case 'jnbe':
-        this.conditionalJump(ops[0], nextAddr, !this.state.flags.CF && !this.state.flags.ZF);
-        break;
-
-      case 'jb':
-      case 'jnae':
-      case 'jc':
-        this.conditionalJump(ops[0], nextAddr, this.state.flags.CF);
-        break;
-
-      case 'jae':
-      case 'jnb':
-      case 'jnc':
-        this.conditionalJump(ops[0], nextAddr, !this.state.flags.CF);
-        break;
-
-      case 'jbe':
-      case 'jna':
-        this.conditionalJump(ops[0], nextAddr, this.state.flags.CF || this.state.flags.ZF);
-        break;
-
+      case 'je': case 'jz':
+        this.conditionalJump(ops[0], nextAddr, this.state.flags.ZF); break;
+      case 'jne': case 'jnz':
+        this.conditionalJump(ops[0], nextAddr, !this.state.flags.ZF); break;
+      case 'jg': case 'jnle':
+        this.conditionalJump(ops[0], nextAddr, !this.state.flags.ZF && this.state.flags.SF === this.state.flags.OF); break;
+      case 'jge': case 'jnl':
+        this.conditionalJump(ops[0], nextAddr, this.state.flags.SF === this.state.flags.OF); break;
+      case 'jl': case 'jnge':
+        this.conditionalJump(ops[0], nextAddr, this.state.flags.SF !== this.state.flags.OF); break;
+      case 'jle': case 'jng':
+        this.conditionalJump(ops[0], nextAddr, this.state.flags.ZF || this.state.flags.SF !== this.state.flags.OF); break;
+      case 'ja': case 'jnbe':
+        this.conditionalJump(ops[0], nextAddr, !this.state.flags.CF && !this.state.flags.ZF); break;
+      case 'jb': case 'jnae': case 'jc':
+        this.conditionalJump(ops[0], nextAddr, this.state.flags.CF); break;
+      case 'jae': case 'jnb': case 'jnc':
+        this.conditionalJump(ops[0], nextAddr, !this.state.flags.CF); break;
+      case 'jbe': case 'jna':
+        this.conditionalJump(ops[0], nextAddr, this.state.flags.CF || this.state.flags.ZF); break;
       case 'js':
-        this.conditionalJump(ops[0], nextAddr, this.state.flags.SF);
-        break;
-
+        this.conditionalJump(ops[0], nextAddr, this.state.flags.SF); break;
       case 'jns':
-        this.conditionalJump(ops[0], nextAddr, !this.state.flags.SF);
-        break;
+        this.conditionalJump(ops[0], nextAddr, !this.state.flags.SF); break;
 
       case 'call': {
         const target = this.parseOperand(ops[0]);
         this.push(nextAddr);
-        this.state.registers.eip = this.readOperand(target);
+        this.state.registers[this.ipReg] = this.readOperand(target);
         break;
       }
 
       case 'ret': {
         const retAddr = this.pop();
-        this.state.registers.eip = retAddr;
+        this.state.registers[this.ipReg] = retAddr;
         if (!this.instrMap.has(retAddr)) {
           this.state.halted = true;
         }
@@ -542,15 +529,16 @@ export class X86Emulator {
       }
 
       case 'leave': {
-        this.state.registers.esp = this.state.registers.ebp;
-        this.state.registers.ebp = this.pop();
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.spReg] = this.state.registers[this.bpReg];
+        this.state.registers[this.bpReg] = this.pop();
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
+      case 'syscall':
       case 'int': {
         this.state.halted = true;
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
       }
 
@@ -560,7 +548,7 @@ export class X86Emulator {
       }
 
       default:
-        this.state.registers.eip = nextAddr;
+        this.state.registers[this.ipReg] = nextAddr;
         break;
     }
   }
@@ -568,19 +556,20 @@ export class X86Emulator {
   private conditionalJump(targetOp: string, nextAddr: number, condition: boolean): void {
     if (condition) {
       const target = this.parseOperand(targetOp);
-      this.state.registers.eip = this.readOperand(target);
+      this.state.registers[this.ipReg] = this.readOperand(target);
     } else {
-      this.state.registers.eip = nextAddr;
+      this.state.registers[this.ipReg] = nextAddr;
     }
   }
 
   private formatLog(instr: AsmInstruction, diffs: RegisterDiff[], flagChanges: Partial<X86Flags>): string {
-    const hex = (n: number) => '0x' + (n >>> 0).toString(16).padStart(8, '0');
+    const w = this.wordSize === 4 ? 8 : 16;
+    const hex = (n: number) => '0x' + (n >>> 0).toString(16).padStart(w, '0');
     let log = `${hex(instr.addr)}: ${instr.mnemonic} ${instr.operands}`;
 
     if (diffs.length > 0) {
       const changes = diffs
-        .filter(d => d.reg !== 'eip')
+        .filter(d => d.reg !== this.ipReg)
         .map(d => `${d.reg.toUpperCase()}=${hex(d.newValue)}`)
         .join(', ');
       if (changes) log += ` → ${changes}`;
@@ -595,32 +584,33 @@ export class X86Emulator {
     return log;
   }
 
-  reset(initialRegs?: Partial<Record<X86Register, number>>): void {
+  reset(initialRegs?: Record<string, number>): void {
     this.memory.clear();
     this.state = {
-      registers: { ...defaultRegisters(), ...initialRegs },
+      registers: { ...defaultRegisters(this.state.arch), ...(initialRegs ?? {}) },
       flags: defaultFlags(),
       stack: [],
       stackBase: this.state.stackBase,
       halted: false,
+      arch: this.state.arch,
     };
-    if (!initialRegs?.eip && this.instructions.length > 0) {
-      this.state.registers.eip = this.instructions[0].addr;
+    if (!initialRegs?.[this.ipReg] && this.instructions.length > 0) {
+      this.state.registers[this.ipReg] = this.instructions[0].addr;
     }
-    if (!initialRegs?.esp) {
-      this.state.registers.esp = this.state.stackBase;
+    if (!initialRegs?.[this.spReg]) {
+      this.state.registers[this.spReg] = this.state.stackBase;
     }
-    if (!initialRegs?.ebp) {
-      this.state.registers.ebp = this.state.stackBase;
+    if (!initialRegs?.[this.bpReg]) {
+      this.state.registers[this.bpReg] = this.state.stackBase;
     }
   }
 
   getStackView(count = 16): Array<{ addr: number; value: number }> {
-    const esp = this.state.registers.esp;
+    const sp = this.state.registers[this.spReg];
     const entries: Array<{ addr: number; value: number }> = [];
     for (let i = 0; i < count; i++) {
-      const addr = this.u32(esp + i * 4);
-      entries.push({ addr, value: this.readMem(addr, 4) });
+      const addr = this.u32(sp + i * this.wordSize);
+      entries.push({ addr, value: this.readMem(addr, this.wordSize) });
     }
     return entries;
   }
