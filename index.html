@@ -1081,39 +1081,7 @@ const BADGES = {
 // ──────────────────────────────────────────────
 
 function isExerciseUnlocked(idx) {
-  if (idx === 0) return true;
-  const ex = EXERCISES[idx];
-  if (!ex) return false;
-  const unit = UNITS.find(u => u.exercises.includes(idx));
-  if (!unit) return false;
-
-  // Unit 1: sequential unlock
-  if (unit.id === 1) {
-    return state.completed.has(idx - 1);
-  }
-
-  // Unit 6 (FINAL): requires ALL other units complete
-  if (unit.id === 6) {
-    for (const u of UNITS) {
-      if (u.id === 6) continue;
-      if (u.exercises.length === 0) continue;
-      for (const ei of u.exercises) {
-        if (!state.completed.has(ei)) return false;
-      }
-    }
-    const posInUnit = unit.exercises.indexOf(idx);
-    if (posInUnit === 0) return true;
-    return state.completed.has(unit.exercises[posInUnit - 1]);
-  }
-
-  // Units 2-5: require all of Unit 1 complete, then sequential within unit
-  const unit1 = UNITS.find(u => u.id === 1);
-  for (const ei of unit1.exercises) {
-    if (!state.completed.has(ei)) return false;
-  }
-  const posInUnit = unit.exercises.indexOf(idx);
-  if (posInUnit === 0) return true;
-  return state.completed.has(unit.exercises[posInUnit - 1]);
+  return idx >= 0 && idx < EXERCISES.length;
 }
 
 function isUnitComplete(unitId) {
