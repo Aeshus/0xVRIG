@@ -1,0 +1,67 @@
+import { Exercise } from '../types';
+import { AsmInstruction } from '@/engine/x86/types';
+
+const instructions: AsmInstruction[] = [
+  // main
+  { addr: 0x08048000, bytes: [0x55], mnemonic: 'push', operands: 'ebp', comment: 'main prologue' },
+  { addr: 0x08048001, bytes: [0x89, 0xe5], mnemonic: 'mov', operands: 'ebp, esp', comment: '' },
+  { addr: 0x08048003, bytes: [0x6a, 0x03], mnemonic: 'push', operands: '3', comment: 'Push arg2 = 3 (cdecl: right-to-left)' },
+  { addr: 0x08048005, bytes: [0x6a, 0x05], mnemonic: 'push', operands: '5', comment: 'Push arg1 = 5' },
+  { addr: 0x08048007, bytes: [0xe8, 0x08, 0x00, 0x00, 0x00], mnemonic: 'call', operands: '0x08048014', comment: 'call add_nums(5, 3)' },
+  { addr: 0x0804800c, bytes: [0x83, 0xc4, 0x08], mnemonic: 'add', operands: 'esp, 8', comment: 'cdecl: CALLER cleans up args (2 * 4 = 8)' },
+  { addr: 0x0804800f, bytes: [0x89, 0xc3], mnemonic: 'mov', operands: 'ebx, eax', comment: 'Save return value (EAX = 8)' },
+  { addr: 0x08048011, bytes: [0xc9], mnemonic: 'leave', operands: '', comment: 'main epilogue' },
+  { addr: 0x08048012, bytes: [0xf4], mnemonic: 'hlt', operands: '', comment: 'EBX = 8 (result from add_nums)' },
+  // add_nums function
+  { addr: 0x08048014, bytes: [0x55], mnemonic: 'push', operands: 'ebp', comment: 'add_nums prologue' },
+  { addr: 0x08048015, bytes: [0x89, 0xe5], mnemonic: 'mov', operands: 'ebp, esp', comment: '' },
+  { addr: 0x08048017, bytes: [0x8b, 0x45, 0x08], mnemonic: 'mov', operands: 'eax, [ebp+8]', comment: 'Load arg1 (5) — past saved EBP and ret addr' },
+  { addr: 0x0804801a, bytes: [0x03, 0x45, 0x0c], mnemonic: 'add', operands: 'eax, [ebp+12]', comment: 'EAX += arg2 (3) → EAX = 8' },
+  { addr: 0x0804801d, bytes: [0xc9], mnemonic: 'leave', operands: '', comment: 'add_nums epilogue' },
+  { addr: 0x0804801e, bytes: [0xc3], mnemonic: 'ret', operands: '', comment: 'Return to caller (EAX = 8)' },
+];
+
+export const asm10: Exercise = {
+  id: 'asm-10',
+  unitId: 'unit0-asm',
+  title: 'Calling Conventions',
+  desc: '<b>Goal:</b> See the <b>cdecl</b> calling convention in action. Arguments pushed right-to-left, <b>caller</b> cleans the stack, return value in <b>EAX</b>. Arguments are at [ebp+8], [ebp+12], etc. (past saved EBP at [ebp] and return address at [ebp+4]).',
+  source: {
+    c: [
+      { text: '// cdecl Calling Convention', cls: 'comment' },
+      { text: '// 1. Args pushed right → left', cls: 'comment' },
+      { text: '// 2. CALLER cleans stack after call', cls: 'comment' },
+      { text: '// 3. Return value in EAX', cls: 'comment' },
+      { text: '// 4. EAX, ECX, EDX are caller-saved', cls: 'comment' },
+      { text: '// 5. EBX, ESI, EDI are callee-saved', cls: 'comment' },
+      { text: '', cls: '' },
+      { text: '// int add_nums(int a, int b) {', cls: 'comment' },
+      { text: '//   return a + b;', cls: 'comment' },
+      { text: '// }', cls: 'comment' },
+      { text: '// int main() {', cls: 'comment' },
+      { text: '//   int result = add_nums(5, 3);', cls: 'comment' },
+      { text: '// }', cls: 'comment' },
+      { text: '', cls: '' },
+      { text: 'main:', cls: 'label' },
+      { text: '  push ebp / mov ebp, esp', cls: 'asm' },
+      { text: '  push 3           ; arg2 (right-to-left!)', cls: 'asm' },
+      { text: '  push 5           ; arg1', cls: 'asm' },
+      { text: '  call add_nums', cls: 'asm' },
+      { text: '  add esp, 8       ; caller cleanup', cls: 'asm' },
+      { text: '  mov ebx, eax     ; save result', cls: 'asm' },
+      { text: '  leave / hlt', cls: 'asm' },
+      { text: '', cls: '' },
+      { text: 'add_nums:', cls: 'label' },
+      { text: '  push ebp / mov ebp, esp', cls: 'asm' },
+      { text: '  mov eax, [ebp+8]  ; arg1 = 5', cls: 'asm' },
+      { text: '  add eax, [ebp+12] ; + arg2 = 3', cls: 'asm' },
+      { text: '  leave / ret       ; return 8', cls: 'asm' },
+    ],
+  },
+  mode: 'asm-step',
+  vizMode: 'asm',
+  asmInstructions: instructions,
+  check: () => true,
+  winTitle: 'Calling Convention Expert!',
+  winMsg: 'You understand cdecl — how C functions pass arguments via the stack.',
+};

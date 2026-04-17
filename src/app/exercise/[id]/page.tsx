@@ -5,6 +5,7 @@ import { useExerciseContext } from '@/state/ExerciseContext';
 import { getExercise } from '@/exercises/registry';
 import { StackSim } from '@/engine/simulators/StackSim';
 import { HeapSim } from '@/engine/simulators/HeapSim';
+import { X86Emulator } from '@/engine/x86/emulator';
 import { BASE_SYMBOLS } from '@/exercises/shared/symbols';
 import SourcePanel from '@/components/panels/SourcePanel/SourcePanel';
 import VizPanel from '@/components/panels/VizPanel/VizPanel';
@@ -39,7 +40,7 @@ function computeSymbols(exercise: ReturnType<typeof getExercise>): Record<string
 
 export default function ExercisePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
-  const { dispatch, stackSim, heapSim } = useExerciseContext();
+  const { dispatch, stackSim, heapSim, asmEmulator } = useExerciseContext();
 
   useEffect(() => {
     const exercise = getExercise(id);
@@ -231,6 +232,23 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
       heapSim.current = heap;
     } else {
       heapSim.current = null;
+    }
+
+    // Initialize ASM emulator
+    if (exercise.asmInstructions) {
+      const emu = new X86Emulator(
+        exercise.asmInstructions,
+        exercise.asmInitialRegs,
+        exercise.asmStackBase ?? 0xbfff0200,
+      );
+      if (exercise.asmInitialMemory) {
+        for (const { addr, value, size } of exercise.asmInitialMemory) {
+          emu.writeMem(addr, value, size);
+        }
+      }
+      asmEmulator.current = emu;
+    } else {
+      asmEmulator.current = null;
     }
 
     // Initialize registers for ROP/SROP exercises

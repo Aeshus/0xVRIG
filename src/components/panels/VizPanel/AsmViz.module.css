@@ -1,0 +1,154 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  height: 100%;
+  overflow-y: auto;
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.section {
+  border: 1px solid var(--border);
+  padding: 6px 8px;
+}
+
+.sectionTitle {
+  color: var(--accent);
+  font-size: 10px;
+  letter-spacing: 1px;
+  margin-bottom: 4px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.halted {
+  color: var(--danger);
+  animation: blink 1s step-end infinite;
+}
+
+@keyframes blink {
+  50% { opacity: 0; }
+}
+
+.regGrid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 2px 12px;
+  margin-bottom: 4px;
+}
+
+.regRow {
+  display: flex;
+  justify-content: space-between;
+  padding: 1px 4px;
+  border-radius: 2px;
+  transition: background 0.2s;
+}
+
+.regPtr {
+  grid-column: span 1;
+}
+
+.regChanged {
+  background: rgba(0, 255, 65, 0.15);
+}
+
+.regName {
+  color: var(--dim);
+  min-width: 32px;
+}
+
+.regValue {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}
+
+.flagRow {
+  display: flex;
+  gap: 12px;
+}
+
+.flag {
+  color: var(--dim);
+  padding: 1px 4px;
+  border-radius: 2px;
+}
+
+.flagSet {
+  color: var(--success);
+  background: rgba(0, 255, 65, 0.1);
+}
+
+.instrList {
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.instrRow {
+  display: flex;
+  gap: 8px;
+  padding: 2px 4px;
+  border-radius: 2px;
+  white-space: nowrap;
+}
+
+.instrCurrent {
+  background: rgba(0, 255, 65, 0.15);
+  border-left: 2px solid var(--accent);
+}
+
+.instrAddr {
+  color: var(--dim);
+  min-width: 90px;
+}
+
+.instrBytes {
+  color: var(--dim);
+  min-width: 60px;
+  font-size: 10px;
+  opacity: 0.6;
+}
+
+.instrMnemonic {
+  color: var(--warning);
+  min-width: 40px;
+  font-weight: bold;
+}
+
+.instrOperands {
+  color: var(--fg);
+}
+
+.instrComment {
+  color: var(--dim);
+  font-style: italic;
+  margin-left: auto;
+}
+
+.stackView {
+  max-height: 140px;
+  overflow-y: auto;
+}
+
+.stackRow {
+  display: flex;
+  gap: 16px;
+  padding: 1px 4px;
+}
+
+.stackEsp {
+  background: rgba(0, 255, 65, 0.1);
+  border-left: 2px solid var(--accent);
+}
+
+.stackAddr {
+  color: var(--dim);
+  min-width: 90px;
+}
+
+.stackValue {
+  color: var(--fg);
+  font-variant-numeric: tabular-nums;
+}

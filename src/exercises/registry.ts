@@ -1,4 +1,5 @@
 import { Exercise, Unit, Badge } from './types';
+import { unit0Exercises } from './unit0-asm';
 import { unit1Exercises } from './unit1-stack';
 import { unit2Exercises } from './unit2-logic';
 import { unit3Exercises } from './unit3-stack-ii';
@@ -8,6 +9,7 @@ import { unit6Exercises } from './unit6-final';
 
 // All exercises from all units, flattened
 const ALL_EXERCISES: Exercise[] = [
+  ...unit0Exercises,
   ...unit1Exercises,
   ...unit2Exercises,
   ...unit3Exercises,
@@ -23,6 +25,7 @@ for (const ex of ALL_EXERCISES) {
 }
 
 export const UNITS: Unit[] = [
+  { id: 'unit0-asm', name: 'ASM', exerciseIds: ['asm-01', 'asm-02', 'asm-03', 'asm-04', 'asm-05', 'asm-06', 'asm-07', 'asm-08', 'asm-09', 'asm-10'] },
   { id: 'unit1-stack', name: 'STACK', exerciseIds: ['stack-01', 'stack-02', 'stack-03', 'stack-04', 'stack-05'] },
   { id: 'unit2-logic', name: 'LOGIC', exerciseIds: ['logic-06', 'logic-07', 'logic-08', 'logic-09', 'logic-10'] },
   { id: 'unit3-stack-ii', name: 'STACK II', exerciseIds: ['stack2-11', 'stack2-12', 'stack2-13', 'stack2-14'] },
@@ -33,10 +36,18 @@ export const UNITS: Unit[] = [
   { id: 'unit8-win-stack', name: 'WIN STACK', exerciseIds: [] },
   { id: 'unit9-win-heap', name: 'WIN HEAP', exerciseIds: [] },
   { id: 'unit10-challenges', name: 'CHALLENGES', exerciseIds: [] },
-  { id: 'unit0-asm', name: 'ASM', exerciseIds: [] },
 ];
 
 export const BADGES: Badge[] = [
+  {
+    id: 'asm-apprentice',
+    name: 'ASM Apprentice',
+    icon: '\u{1F527}',
+    condition: (completed) => {
+      const unit = UNITS.find(u => u.id === 'unit0-asm');
+      return !!unit && unit.exerciseIds.length > 0 && unit.exerciseIds.every(id => completed.has(id));
+    },
+  },
   {
     id: 'stack-smasher',
     name: 'Stack Smasher',

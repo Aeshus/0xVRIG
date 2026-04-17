@@ -10,6 +10,7 @@ import SignednessInput from './inputs/SignednessInput';
 import HeapStepInput from './inputs/HeapStepInput';
 import FinalChainInput from './inputs/FinalChainInput';
 import FinalBlindInput from './inputs/FinalBlindInput';
+import AsmStepInput from './inputs/AsmStepInput';
 import SymbolTable from './tools/SymbolTable';
 import HexCalculator from './tools/HexCalculator';
 import PayloadBuilder from './tools/PayloadBuilder';
@@ -17,7 +18,7 @@ import GadgetTable from './tools/GadgetTable';
 import SigframeBuilder from './tools/SigframeBuilder';
 
 export default function InputPanel() {
-  const { currentExercise } = useExerciseContext();
+  const { currentExercise, asmEmulator } = useExerciseContext();
   const ex = currentExercise;
 
   let content: React.ReactNode;
@@ -62,6 +63,10 @@ export default function InputPanel() {
         break;
       case 'final-blind':
         content = <FinalBlindInput />;
+        break;
+      case 'asm-step':
+      case 'asm-registers':
+        content = <AsmStepInput emulator={asmEmulator.current} />;
         break;
       default:
         content = <div style={{ color: 'var(--text-dim)' }}>Input mode &ldquo;{ex.mode}&rdquo; coming soon.</div>;

@@ -91,6 +91,10 @@ export interface Exercise {
   asmCode?: Uint8Array;
   asmArch?: 'x86' | 'x86-64';
   asmBaseAddr?: number;
+  asmInstructions?: import('@/engine/x86/types').AsmInstruction[];
+  asmInitialRegs?: Partial<Record<import('@/engine/x86/types').X86Register, number>>;
+  asmStackBase?: number;
+  asmInitialMemory?: Array<{ addr: number; value: number; size: number }>;
   sehChainSize?: number;
   safeSEH?: boolean;
   sehop?: boolean;
