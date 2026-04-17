@@ -126,6 +126,12 @@ export interface Unit {
   platform?: 'linux' | 'windows' | 'both';
 }
 
+export interface Track {
+  id: string;
+  name: string;
+  unitIds: string[];
+}
+
 export interface Badge {
   id: string;
   name: string;

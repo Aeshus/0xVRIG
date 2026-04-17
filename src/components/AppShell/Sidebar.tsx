@@ -1,0 +1,207 @@
+'use client';
+
+import { useState, useEffect, useCallback } from 'react';
+import { useRouter, usePathname } from 'next/navigation';
+import { useExerciseContext } from '@/state/ExerciseContext';
+import { TRACKS, UNITS, getExercise } from '@/exercises/registry';
+
+const STORAGE_KEY = '0xvrig-sidebar-v1';
+
+interface SidebarState {
+  collapsed: boolean;
+  openTracks: Record<string, boolean>;
+  openUnits: Record<string, boolean>;
+}
+
+function loadSidebarState(): SidebarState {
+  if (typeof window === 'undefined') {
+    return { collapsed: false, openTracks: {}, openUnits: {} };
+  }
+  try {
+    const raw = localStorage.getItem(STORAGE_KEY);
+    if (raw) return JSON.parse(raw);
+  } catch {}
+  return { collapsed: false, openTracks: {}, openUnits: {} };
+}
+
+function saveSidebarState(s: SidebarState) {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(s));
+  } catch {}
+}
+
+export default function Sidebar() {
+  const router = useRouter();
+  const pathname = usePathname();
+  const { state } = useExerciseContext();
+
+  const [sidebarState, setSidebarState] = useState<SidebarState>(() => loadSidebarState());
+
+  // Persist sidebar state on change
+  useEffect(() => {
+    saveSidebarState(sidebarState);
+  }, [sidebarState]);
+
+  const toggleCollapse = useCallback(() => {
+    setSidebarState((prev) => ({ ...prev, collapsed: !prev.collapsed }));
+  }, []);
+
+  const toggleTrack = useCallback((trackId: string) => {
+    setSidebarState((prev) => ({
+      ...prev,
+      openTracks: { ...prev.openTracks, [trackId]: !prev.openTracks[trackId] },
+    }));
+  }, []);
+
+  const toggleUnit = useCallback((unitId: string) => {
+    setSidebarState((prev) => ({
+      ...prev,
+      openUnits: { ...prev.openUnits, [unitId]: !prev.openUnits[unitId] },
+    }));
+  }, []);
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    function handleKeyDown(e: KeyboardEvent) {
+      // Ctrl+B: toggle sidebar
+      if (e.ctrlKey && e.key === 'b') {
+        e.preventDefault();
+        toggleCollapse();
+      }
+      // Ctrl+Enter: click first .primary button in #input-panel
+      if (e.ctrlKey && e.key === 'Enter') {
+        e.preventDefault();
+        const panel = document.getElementById('input-panel');
+        if (panel) {
+          const btn = panel.querySelector('button.primary') as HTMLButtonElement | null;
+          if (btn) btn.click();
+        }
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown);
+    return () => window.removeEventListener('keydown', handleKeyDown);
+  }, [toggleCollapse]);
+
+  const { collapsed } = sidebarState;
+
+  // Determine which exercise is active from the URL path
+  const activeExerciseId = pathname?.startsWith('/exercise/')
+    ? pathname.replace('/exercise/', '')
+    : state.currentExerciseId;
+
+  // Find which track/unit the active exercise belongs to, so we can auto-open them
+  useEffect(() => {
+    if (!activeExerciseId) return;
+    for (const track of TRACKS) {
+      for (const unitId of track.unitIds) {
+        const unit = UNITS.find((u) => u.id === unitId);
+        if (unit && unit.exerciseIds.includes(activeExerciseId)) {
+          setSidebarState((prev) => {
+            const needsTrackOpen = !prev.openTracks[track.id];
+            const needsUnitOpen = !prev.openUnits[unitId];
+            if (!needsTrackOpen && !needsUnitOpen) return prev;
+            return {
+              ...prev,
+              openTracks: { ...prev.openTracks, [track.id]: true },
+              openUnits: { ...prev.openUnits, [unitId]: true },
+            };
+          });
+          return;
+        }
+      }
+    }
+  }, [activeExerciseId]);
+
+  return (
+    <aside className={`sidebar ${collapsed ? 'sidebar-collapsed' : ''}`}>
+      <button
+        className="sidebar-toggle"
+        onClick={toggleCollapse}
+        title={collapsed ? 'Expand sidebar (Ctrl+B)' : 'Collapse sidebar (Ctrl+B)'}
+      >
+        {collapsed ? '\u25B6' : '\u25C0'}
+      </button>
+
+      {!collapsed && (
+        <div className="sidebar-content">
+          {TRACKS.map((track) => {
+            const trackUnits = track.unitIds
+              .map((uid) => UNITS.find((u) => u.id === uid))
+              .filter(Boolean) as typeof UNITS;
+            const totalExercises = trackUnits.reduce((sum, u) => sum + u.exerciseIds.length, 0);
+            const completedExercises = trackUnits.reduce(
+              (sum, u) => sum + u.exerciseIds.filter((id) => state.completed.has(id)).length,
+              0,
+            );
+            const isTrackOpen = !!sidebarState.openTracks[track.id];
+
+            return (
+              <div key={track.id} className="sidebar-track">
+                <button
+                  className="sidebar-track-header"
+                  onClick={() => toggleTrack(track.id)}
+                >
+                  <span className="sidebar-chevron">{isTrackOpen ? '\u25BE' : '\u25B8'}</span>
+                  <span className="sidebar-track-name">{track.name}</span>
+                  <span className="sidebar-track-count">
+                    {completedExercises}/{totalExercises}
+                  </span>
+                </button>
+
+                {isTrackOpen &&
+                  trackUnits.map((unit) => {
+                    const isUnitOpen = !!sidebarState.openUnits[unit.id];
+                    const unitCompleted = unit.exerciseIds.filter((id) =>
+                      state.completed.has(id),
+                    ).length;
+
+                    return (
+                      <div key={unit.id} className="sidebar-unit">
+                        <button
+                          className="sidebar-unit-header"
+                          onClick={() => toggleUnit(unit.id)}
+                        >
+                          <span className="sidebar-chevron">
+                            {isUnitOpen ? '\u25BE' : '\u25B8'}
+                          </span>
+                          <span className="sidebar-unit-name">{unit.name}</span>
+                          <span className="sidebar-unit-count">
+                            {unitCompleted}/{unit.exerciseIds.length}
+                          </span>
+                        </button>
+
+                        {isUnitOpen &&
+                          unit.exerciseIds.map((exId) => {
+                            const ex = getExercise(exId);
+                            if (!ex) return null;
+                            const isActive = activeExerciseId === exId;
+                            const isCompleted = state.completed.has(exId);
+                            const numMatch = exId.match(/(\d+)$/);
+                            const num = numMatch ? numMatch[1].padStart(2, '0') : '??';
+
+                            return (
+                              <button
+                                key={exId}
+                                className={`sidebar-exercise${isActive ? ' active' : ''}${isCompleted ? ' completed' : ''}`}
+                                onClick={() => router.push(`/exercise/${exId}`)}
+                                title={ex.title}
+                              >
+                                <span className="sidebar-exercise-num">{num}</span>
+                                <span className="sidebar-exercise-title">{ex.title}</span>
+                                {isCompleted && (
+                                  <span className="sidebar-exercise-check">{'\u2713'}</span>
+                                )}
+                              </button>
+                            );
+                          })}
+                      </div>
+                    );
+                  })}
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </aside>
+  );
+}

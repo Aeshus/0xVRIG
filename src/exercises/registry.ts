@@ -1,4 +1,4 @@
-import { Exercise, Unit, Badge } from './types';
+import { Exercise, Unit, Badge, Track } from './types';
 import { unit0Exercises } from './unit0-asm';
 import { unit1Exercises } from './unit1-stack';
 import { unit2Exercises } from './unit2-logic';
@@ -35,15 +35,24 @@ for (const ex of ALL_EXERCISES) {
 export const UNITS: Unit[] = [
   { id: 'unit0-asm', name: 'ASM', exerciseIds: ['asm-01', 'asm-02', 'asm-03', 'asm-04', 'asm-05', 'asm-06', 'asm-07', 'asm-08', 'asm-09', 'asm-10'] },
   { id: 'unit1-stack', name: 'STACK', exerciseIds: ['stack-01', 'stack-02', 'stack-03', 'stack-04', 'stack-05'] },
-  { id: 'unit2-logic', name: 'LOGIC', exerciseIds: ['logic-06', 'logic-07', 'logic-08', 'logic-09', 'logic-10'] },
+  { id: 'unit2-logic', name: 'Logic & Input Mismatches', exerciseIds: ['logic-06', 'logic-07', 'logic-08', 'logic-09', 'logic-10'] },
   { id: 'unit3-stack-ii', name: 'STACK II', exerciseIds: ['stack2-11', 'stack2-12', 'stack2-13', 'stack2-14'] },
   { id: 'unit4-heap', name: 'HEAP', exerciseIds: ['heap-15', 'heap-16', 'heap-17', 'heap-18'] },
   { id: 'unit5-heap-ii', name: 'HEAP II', exerciseIds: ['heap2-19', 'heap2-20', 'heap2-21', 'heap2-22', 'heap2-23', 'heap2-24', 'heap2-25', 'heap2-26'] },
-  { id: 'unit6-final', name: 'FINAL', exerciseIds: ['final-27', 'final-28'] },
+  { id: 'unit6-final', name: 'Exploit Chains', exerciseIds: ['final-27', 'final-28'] },
   { id: 'unit7-x64', name: 'x86-64', exerciseIds: ['x64-29', 'x64-30', 'x64-31', 'x64-32', 'x64-33', 'x64-34', 'x64-35', 'x64-36'] },
   { id: 'unit8-win-stack', name: 'WIN STACK', exerciseIds: ['win-37', 'win-38', 'win-39', 'win-40', 'win-41', 'win-42'], platform: 'windows' },
   { id: 'unit9-win-heap', name: 'WIN HEAP', exerciseIds: ['win-43', 'win-44', 'win-45', 'win-46'], platform: 'windows' },
-  { id: 'unit10-challenges', name: 'CHALLENGES', exerciseIds: ['ctf-47', 'ctf-48', 'ctf-49', 'ctf-50', 'ctf-51', 'ctf-52'] },
+  { id: 'unit10-challenges', name: 'CTF Lab', exerciseIds: ['ctf-47', 'ctf-48', 'ctf-49', 'ctf-50', 'ctf-51', 'ctf-52'] },
+];
+
+export const TRACKS: Track[] = [
+  { id: 'foundations', name: 'Foundations', unitIds: ['unit0-asm', 'unit7-x64', 'unit1-stack', 'unit3-stack-ii'] },
+  { id: 'logic-input', name: 'Logic & Input', unitIds: ['unit2-logic'] },
+  { id: 'linux-heap', name: 'Linux Heap', unitIds: ['unit4-heap', 'unit5-heap-ii'] },
+  { id: 'windows', name: 'Windows', unitIds: ['unit8-win-stack', 'unit9-win-heap'] },
+  { id: 'advanced', name: 'Advanced', unitIds: ['unit6-final'] },
+  { id: 'challenges', name: 'Challenges', unitIds: ['unit10-challenges'] },
 ];
 
 export const BADGES: Badge[] = [

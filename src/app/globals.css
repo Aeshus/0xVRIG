@@ -28,28 +28,100 @@ header {
   flex-shrink: 0;
 }
 header h1 { font-size: 14px; color: var(--green); font-weight: normal; white-space: nowrap; }
-nav { display: flex; gap: 0.15rem; flex-wrap: wrap; align-items: center; }
-.nav-unit-label {
-  font-size: 10px; color: var(--text-dim); text-transform: uppercase;
-  letter-spacing: 0.05em; padding: 0.25rem 0.5rem; margin-left: 0.5rem;
-  border-left: 1px solid var(--panel-border);
+
+/* Sidebar */
+.sidebar {
+  width: 260px; min-width: 260px; background: var(--panel-bg);
+  border-right: 1px solid var(--panel-border);
+  display: flex; flex-direction: column; overflow: hidden;
+  transition: width 0.15s, min-width 0.15s;
 }
-.nav-unit-label:first-child { margin-left: 0; border-left: none; }
-nav button {
-  background: transparent; border: 1px solid var(--panel-border); color: var(--text-dim);
-  padding: 0.25rem 0.5rem; font-family: var(--font); font-size: 11px; cursor: pointer;
-  transition: all 0.15s; min-width: 2em; text-align: center;
+.sidebar-collapsed {
+  width: 40px; min-width: 40px;
 }
-nav button:hover:not(:disabled) { border-color: var(--text-dim); color: var(--text); }
-nav button.active { border-color: var(--green); color: var(--green); }
-nav button.completed { border-color: var(--comment); color: var(--comment); }
-nav button.completed::after { content: ' \2713'; font-size: 9px; }
-nav button:disabled { opacity: 0.3; cursor: not-allowed; }
+.sidebar-toggle {
+  display: flex; align-items: center; justify-content: center;
+  width: 100%; height: 28px; flex-shrink: 0;
+  background: transparent; border: none; border-bottom: 1px solid var(--panel-border);
+  color: var(--text-dim); font-family: var(--font); font-size: 11px; cursor: pointer;
+  transition: color 0.15s;
+}
+.sidebar-toggle:hover { color: var(--text); }
+.sidebar-content {
+  flex: 1; overflow-y: auto; padding: 0.25rem 0;
+}
+
+/* Track level */
+.sidebar-track {
+  border-bottom: 1px solid var(--panel-border);
+}
+.sidebar-track:last-child { border-bottom: none; }
+.sidebar-track-header {
+  display: flex; align-items: center; gap: 0.35rem; width: 100%;
+  padding: 0.45rem 0.5rem; background: transparent; border: none;
+  color: var(--text); font-family: var(--font); font-size: 12px;
+  cursor: pointer; text-align: left; transition: background 0.1s;
+}
+.sidebar-track-header:hover { background: rgba(255,255,255,0.04); }
+.sidebar-track-name { flex: 1; font-weight: bold; letter-spacing: 0.02em; }
+.sidebar-track-count {
+  font-size: 10px; color: var(--text-dim); margin-left: auto; white-space: nowrap;
+}
+
+/* Unit level */
+.sidebar-unit {
+  /* indent under track */
+}
+.sidebar-unit-header {
+  display: flex; align-items: center; gap: 0.3rem; width: 100%;
+  padding: 0.3rem 0.5rem 0.3rem 1.25rem; background: transparent; border: none;
+  color: var(--text-dim); font-family: var(--font); font-size: 11px;
+  cursor: pointer; text-align: left; text-transform: uppercase;
+  letter-spacing: 0.04em; transition: background 0.1s;
+}
+.sidebar-unit-header:hover { background: rgba(255,255,255,0.03); color: var(--text); }
+.sidebar-unit-name { flex: 1; }
+.sidebar-unit-count {
+  font-size: 10px; color: var(--text-dim); margin-left: auto; white-space: nowrap;
+}
+
+/* Exercise item */
+.sidebar-exercise {
+  display: flex; align-items: center; gap: 0.4rem; width: 100%;
+  padding: 0.2rem 0.5rem 0.2rem 2rem; background: transparent;
+  border: none; border-left: 2px solid transparent;
+  color: var(--text-dim); font-family: var(--font); font-size: 11px;
+  cursor: pointer; text-align: left; transition: all 0.1s;
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar-exercise:hover { background: rgba(255,255,255,0.03); color: var(--text); }
+.sidebar-exercise.active {
+  border-left-color: var(--green); color: var(--green); background: rgba(78,201,176,0.06);
+}
+.sidebar-exercise.completed { color: var(--comment); }
+.sidebar-exercise-num {
+  flex-shrink: 0; width: 2em; text-align: right; margin-right: 0.2em;
+}
+.sidebar-exercise-title {
+  flex: 1; overflow: hidden; text-overflow: ellipsis;
+}
+.sidebar-exercise-check {
+  flex-shrink: 0; color: var(--green); font-size: 10px; margin-left: auto;
+}
+
+/* Chevron arrows for accordion */
+.sidebar-chevron {
+  flex-shrink: 0; width: 1em; text-align: center; font-size: 10px; color: var(--text-dim);
+}
 
 #badges { display: flex; gap: 0.5rem; margin-left: auto; }
 .badge {
   font-size: 11px; padding: 0.15rem 0.5rem; border: 1px solid var(--yellow);
   color: var(--yellow); border-radius: 2px; white-space: nowrap;
+}
+
+#app-body {
+  display: flex; flex-direction: row; flex: 1; overflow: hidden;
 }
 
 main {

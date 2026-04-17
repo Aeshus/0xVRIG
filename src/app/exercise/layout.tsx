@@ -1,7 +1,7 @@
 'use client';
 
 import { ExerciseContextProvider } from '@/state/ExerciseContext';
-import ExerciseNav from '@/components/AppShell/ExerciseNav';
+import Sidebar from '@/components/AppShell/Sidebar';
 import SuccessBanner from '@/components/shared/SuccessBanner';
 
 export default function ExerciseLayout({ children }: { children: React.ReactNode }) {
@@ -9,13 +9,15 @@ export default function ExerciseLayout({ children }: { children: React.ReactNode
     <ExerciseContextProvider>
       <div id="app">
         <header>
-          <h1>// MEMORY CORRUPTION LAB</h1>
-          <ExerciseNav />
+          <h1>0xVRIG</h1>
           <div id="badges"></div>
         </header>
-        <main>
-          {children}
-        </main>
+        <div id="app-body">
+          <Sidebar />
+          <main>
+            {children}
+          </main>
+        </div>
         <SuccessBanner />
       </div>
     </ExerciseContextProvider>
