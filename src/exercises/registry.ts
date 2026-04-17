@@ -9,6 +9,7 @@ import { unit6Exercises } from './unit6-final';
 import { unit7Exercises } from './unit7-x64';
 import { unit8Exercises } from './unit8-win-stack';
 import { unit9Exercises } from './unit9-win-heap';
+import { unit10Exercises } from './unit10-challenges';
 
 // All exercises from all units, flattened
 const ALL_EXERCISES: Exercise[] = [
@@ -22,6 +23,7 @@ const ALL_EXERCISES: Exercise[] = [
   ...unit7Exercises,
   ...unit8Exercises,
   ...unit9Exercises,
+  ...unit10Exercises,
 ];
 
 // Exercise lookup map
@@ -41,7 +43,7 @@ export const UNITS: Unit[] = [
   { id: 'unit7-x64', name: 'x86-64', exerciseIds: ['x64-29', 'x64-30', 'x64-31', 'x64-32', 'x64-33', 'x64-34', 'x64-35', 'x64-36'] },
   { id: 'unit8-win-stack', name: 'WIN STACK', exerciseIds: ['win-37', 'win-38', 'win-39', 'win-40', 'win-41', 'win-42'], platform: 'windows' },
   { id: 'unit9-win-heap', name: 'WIN HEAP', exerciseIds: ['win-43', 'win-44', 'win-45', 'win-46'], platform: 'windows' },
-  { id: 'unit10-challenges', name: 'CHALLENGES', exerciseIds: [] },
+  { id: 'unit10-challenges', name: 'CHALLENGES', exerciseIds: ['ctf-47', 'ctf-48', 'ctf-49', 'ctf-50', 'ctf-51', 'ctf-52'] },
 ];
 
 export const BADGES: Badge[] = [
