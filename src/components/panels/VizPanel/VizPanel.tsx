@@ -28,11 +28,14 @@ export default function VizPanel() {
       );
       title = 'stack + heap';
       break;
-    case 'asm':
+    case 'asm': {
+      const archLabel = currentExercise?.asmArch ?? 'x86';
       content = <AsmViz emulator={asmEmulator.current} renderKey={state.vizRenderKey} />;
-      title = 'x86 emulator';
+      title = `${archLabel} emulator`;
       break;
-    case 'asm-stack':
+    }
+    case 'asm-stack': {
+      const archLabel = currentExercise?.asmArch ?? 'x86';
       content = (
         <>
           <AsmViz emulator={asmEmulator.current} renderKey={state.vizRenderKey} />
@@ -41,8 +44,9 @@ export default function VizPanel() {
           </div>
         </>
       );
-      title = 'x86 + stack';
+      title = `${archLabel} + stack`;
       break;
+    }
     default:
       content = <StackViz />;
       title = 'stack';

@@ -6,6 +6,8 @@ import { getExercise } from '@/exercises/registry';
 import { StackSim } from '@/engine/simulators/StackSim';
 import { HeapSim } from '@/engine/simulators/HeapSim';
 import { X86Emulator } from '@/engine/x86/emulator';
+import { ArmEmulator } from '@/engine/arm/emulator';
+import { MipsEmulator } from '@/engine/mips/emulator';
 import { BASE_SYMBOLS } from '@/exercises/shared/symbols';
 import SourcePanel from '@/components/panels/SourcePanel/SourcePanel';
 import VizPanel from '@/components/panels/VizPanel/VizPanel';
@@ -236,12 +238,28 @@ export default function ExercisePage({ params }: { params: Promise<{ id: string 
 
     // Initialize ASM emulator
     if (exercise.asmInstructions) {
-      const emu = new X86Emulator(
-        exercise.asmInstructions,
-        exercise.asmInitialRegs,
-        exercise.asmStackBase ?? 0xbfff0200,
-        exercise.asmArch ?? 'x86',
-      );
+      const arch = exercise.asmArch ?? 'x86';
+      let emu;
+      if (arch === 'arm') {
+        emu = new ArmEmulator(
+          exercise.asmInstructions,
+          exercise.asmInitialRegs,
+          exercise.asmStackBase ?? 0xbfff0200,
+        );
+      } else if (arch === 'mips') {
+        emu = new MipsEmulator(
+          exercise.asmInstructions,
+          exercise.asmInitialRegs,
+          exercise.asmStackBase ?? 0x7ffffffc,
+        );
+      } else {
+        emu = new X86Emulator(
+          exercise.asmInstructions,
+          exercise.asmInitialRegs,
+          exercise.asmStackBase ?? 0xbfff0200,
+          arch,
+        );
+      }
       if (exercise.asmInitialMemory) {
         for (const { addr, value, size } of exercise.asmInitialMemory) {
           emu.writeMem(addr, value, size);
