@@ -674,11 +674,46 @@ const EXERCISES = [
     winTitle: 'FLAG{integer_wrap}',
     winMsg: 'The math wrapped around! A huge number + 64 became a tiny number, so the buffer was too small. Your input overflowed it and hijacked the go-back address. This is how integer overflows lead to memory corruption.',
   },
+  {
+    title: '07: Format String: Reading',
+    unit: 2,
+    desc: 'The program passes your input directly to <strong>printf()</strong> as the format string. Normally printf expects a fixed string like "hello %s". But if YOU control the format string, you can use <strong>%x</strong> to read values from the stack — like a secret password stored in memory.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void vuln() {', cls: '', fn: true },
+      { text: '    int secret = 0xCAFEBABE;', cls: '' },
+      { text: '    char buf[64];', cls: '' },
+      { text: '    fgets(buf, 64, stdin);', cls: '' },
+      { text: '    printf(buf);', cls: 'highlight vuln' },
+      { text: '    // BUG: user input IS the format string!', cls: 'cmt' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    vuln();', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+    ],
+    mode: 'input-fmt-read',
+    vizMode: 'stack',
+    bufSize: 64,
+    showSymbols: false,
+    showBuilder: false,
+    aslr: false,
+    fmtRead: true,
+    secretValue: 0xCAFEBABE,
+    secretOffset: 3,
+    check(sim) {
+      return state.fmtLeakedSecret === true;
+    },
+    winTitle: 'Secret Leaked!',
+    winMsg: 'You used %x to walk up the stack and read the secret value. In real exploits, this technique leaks canaries, return addresses, and heap pointers — anything stored on the stack.',
+  },
 ];
 
 const UNITS = [
   { id: 1, name: 'STACK', exercises: [0,1,2,3,4] },
-  { id: 2, name: 'LOGIC', exercises: [5] },
+  { id: 2, name: 'LOGIC', exercises: [5, 6] },
   { id: 3, name: 'STACK II', exercises: [] },
   { id: 4, name: 'HEAP', exercises: [] },
   { id: 5, name: 'HEAP II', exercises: [] },
@@ -975,6 +1010,21 @@ function renderInput(ex) {
     return;
   }
 
+  if (ex.mode === 'input-fmt-read') {
+    area.innerHTML = `
+      <label style="font-size:11px;color:var(--text-dim)">Type a format string (try %x to read values from the stack):</label>
+      <textarea id="payload-input" placeholder="Try: %x %x %x %x" rows="2"
+        style="width:100%;background:#0a0a0a;border:1px solid var(--panel-border);color:var(--text);font-family:var(--font);font-size:13px;padding:0.5rem;resize:none;margin-top:0.35rem"></textarea>
+      <div class="controls" style="margin-top:0.5rem">
+        <button class="primary" onclick="runFmtRead()">Run printf()</button>
+        <button onclick="doReset()">Reset</button>
+      </div>
+    `;
+    builder.style.display = 'none';
+    syms.style.display = 'none';
+    return;
+  }
+
   if (ex.mode === 'step') {
     area.innerHTML = `
       <div class="controls">
@@ -1132,6 +1182,7 @@ function loadExercise(idx) {
   state.running = false;
   state.inputMode = ex.mode === 'input-hex' ? 'hex' : 'text';
   state.logMessages = [];
+  state.fmtLeakedSecret = false;
 
   log('info', '═══ ' + ex.title + ' ═══');
 
@@ -1741,6 +1792,90 @@ async function doRunAll() {
     if (!state.running) break; // reset was called
   }
   state.running = false;
+}
+
+function runFmtRead() {
+  const ta = document.getElementById('payload-input');
+  if (!ta || !ta.value.trim()) { log('info', 'Enter a format string first.'); renderLog(); return; }
+  simulateFmtRead(ta.value);
+}
+
+function simulateFmtRead(input) {
+  const ex = EXERCISES[state.currentEx];
+  if (!ex || !ex.fmtRead) return;
+
+  state.logMessages = [];
+  log('info', '═══ ' + ex.title + ' ═══');
+  log('action', 'printf(buf) — interpreting your input as a format string...');
+  log('info', '');
+
+  // Simulated stack values above buf (what printf would read as "arguments")
+  const stackValues = [
+    { label: 'printf internal', value: 0xbfff0200 },
+    { label: 'buf pointer', value: state.sim.baseAddr },
+    { label: 'saved register', value: 0x00000040 },
+    { label: '★ secret', value: ex.secretValue },
+    { label: 'saved EBP', value: 0xbfff0300 },
+    { label: 'return address', value: retAddrInMain() },
+  ];
+
+  let output = '';
+  let stackIdx = 0;
+  let i = 0;
+  state.fmtLeakedSecret = false;
+
+  while (i < input.length) {
+    if (input[i] === '%' && i + 1 < input.length) {
+      const spec = input[i + 1];
+      if ((spec === 'x' || spec === 'p') && stackIdx < stackValues.length) {
+        const sv = stackValues[stackIdx];
+        const hexVal = (sv.value >>> 0).toString(16).padStart(8, '0');
+        const prefix = spec === 'p' ? '0x' : '';
+        output += prefix + hexVal;
+        log('action', '%' + spec + ' → read stack slot ' + (stackIdx + 1) + ': <span class="log-addr">0x' +
+          hexVal + '</span> <span class="log-label">(' + sv.label + ')</span>');
+
+        if (sv.value === ex.secretValue) {
+          log('success', '★ That\'s the secret! You found it: 0x' + hexVal.toUpperCase());
+          state.fmtLeakedSecret = true;
+        }
+        stackIdx++;
+        i += 2;
+        continue;
+      } else if (spec === 's') {
+        output += '(string)';
+        log('warn', '%s → tried to read a string from the stack — could crash the program!');
+        stackIdx++;
+        i += 2;
+        continue;
+      } else if (spec === 'n') {
+        log('error', '%n → this WRITES to memory! Dangerous, but we\'ll learn about it next.');
+        stackIdx++;
+        i += 2;
+        continue;
+      }
+    }
+    output += input[i];
+    i++;
+  }
+
+  log('info', '');
+  log('action', 'printf output: "' + output + '"');
+
+  if (state.fmtLeakedSecret) {
+    log('info', '');
+    log('success', 'The secret was at stack slot ' + (ex.secretOffset + 1) +
+      '. Tip: in real exploits you can use %' + (ex.secretOffset + 1) + '$x to read a specific slot directly.');
+    showSuccess(ex.winTitle, ex.winMsg);
+    state.completed.add(state.currentEx);
+    saveProgress();
+    renderNav();
+  } else if (stackIdx > 0) {
+    log('info', '');
+    log('info', 'Keep adding more %x to walk further up the stack. The secret (0xCAFEBABE) is hiding in one of the slots!');
+  }
+
+  renderLog();
 }
 
 function doReset() {
