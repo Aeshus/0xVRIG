@@ -264,6 +264,35 @@ main {
 ::-webkit-scrollbar { width: 6px; }
 ::-webkit-scrollbar-track { background: var(--panel-bg); }
 ::-webkit-scrollbar-thumb { background: var(--panel-border); }
+
+#gadget-table { margin-top: 0.75rem; font-size: 11px; }
+#gadget-table h4 { color: var(--text-dim); font-weight: normal; margin-bottom: 0.35rem; text-transform: uppercase; letter-spacing: 0.05em; }
+.gadget-row { display: flex; gap: 0.75rem; padding: 0.15rem 0; cursor: pointer; }
+.gadget-row:hover { background: rgba(255,255,255,0.03); }
+.gadget-addr { color: var(--amber); width: 9em; }
+.gadget-asm { color: var(--text); }
+.gadget-row.used { opacity: 0.5; }
+
+#register-display {
+  margin-top: 0.75rem; padding: 0.5rem; border: 1px solid var(--panel-border);
+  font-size: 11px; display: grid; grid-template-columns: repeat(4, 1fr); gap: 0.25rem;
+}
+.reg-entry { display: flex; gap: 0.35rem; }
+.reg-name { color: var(--blue); width: 3em; }
+.reg-val { color: var(--amber); }
+.reg-val.changed { color: var(--green); animation: flash 0.4s ease; }
+
+#sigframe-builder {
+  margin-top: 0.75rem; padding: 0.5rem; border: 1px solid var(--panel-border);
+  font-size: 11px;
+}
+#sigframe-builder h4 { color: var(--text-dim); font-weight: normal; margin-bottom: 0.5rem; text-transform: uppercase; }
+.sigframe-row { display: flex; align-items: center; gap: 0.5rem; margin-bottom: 0.25rem; }
+.sigframe-row label { color: var(--blue); width: 5em; }
+.sigframe-row input {
+  background: #0a0a0a; border: 1px solid var(--panel-border); color: var(--text);
+  font-family: var(--font); font-size: 11px; padding: 0.2rem 0.4rem; width: 10em;
+}
 </style>
 </head>
 <body class="crt">
@@ -290,6 +319,9 @@ main {
         <div id="payload-builder" style="display:none"></div>
         <div id="hex-calc" style="display:none"></div>
         <div id="symbols-table" style="display:none"></div>
+        <div id="gadget-table" style="display:none"></div>
+        <div id="register-display" style="display:none"></div>
+        <div id="sigframe-builder" style="display:none"></div>
       </div>
     </div>
     <div class="panel" id="log-panel">
@@ -412,7 +444,8 @@ class StackSim {
     if (byteIndex < this.bufSize) return 'buffer';
     if (this.useCanary && byteIndex < this.bufSize + this.canarySize) return 'canary';
     if (byteIndex < this.bufSize + this.canarySize + this.ebpSize) return 'ebp';
-    return 'ret';
+    if (byteIndex < this.bufSize + this.canarySize + this.ebpSize + this.retSize) return 'ret';
+    return 'ret'; // extra bytes past ret (for ret2libc/ROP/SROP payloads)
   }
 }
 
@@ -466,6 +499,8 @@ const BASE_SYMBOLS = {
   vuln:   0x08048054,
   win:    0x08048150,
   normal: 0x080480a0,
+  system: 0x08048200,
+  binsh:  0x08049300,
 };
 
 function retAddrInMain() { return (state.symbols.main || BASE_SYMBOLS.main) + 0x25; }
@@ -826,12 +861,206 @@ const EXERCISES = [
     winTitle: 'FLAG{signed_vs_unsigned}',
     winMsg: 'The negative number slipped past the bounds check, then became a huge unsigned value. memcpy happily overwrote everything. This is why mixing signed and unsigned types is dangerous!',
   },
+
+  // ── Exercise 11: Return to Libc ──
+  {
+    title: '11: Return to Libc',
+    unit: 3,
+    desc: 'The stack is marked <strong>no-execute</strong> (NX) — you can\'t run your own code there. But you can call <strong>system("/bin/sh")</strong> which already exists in the program! Overwrite the go-back address with system\'s address, then set up a fake call frame: a dummy return address (anything), then the address of the "/bin/sh" string as the argument.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '#include <stdlib.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: '// NX enabled — stack is not executable!', cls: 'cmt' },
+      { text: '', cls: '' },
+      { text: 'void vuln() {', cls: '', fn: true },
+      { text: '    char buf[16];', cls: '' },
+      { text: '    gets(buf);', cls: 'highlight vuln' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    vuln();', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: '// In libc:', cls: 'cmt' },
+      { text: '// system() at 0x08048200', cls: 'cmt' },
+      { text: '// "/bin/sh" string at 0x08049300', cls: 'cmt' },
+    ],
+    mode: 'input-hex',
+    bufSize: 16,
+    showSymbols: true,
+    showBuilder: false,
+    aslr: false,
+    nx: true,
+    ret2libc: true,
+    check(sim) {
+      const retAddr = sim.getRetAddr();
+      // The argument to system() is 8 bytes after the start of the return address
+      const argOffset = sim.bufSize + sim.canarySize + sim.ebpSize + sim.retSize + 4;
+      const arg = sim._readLE(argOffset, 4);
+      return retAddr === state.symbols.system && arg === state.symbols.binsh;
+    },
+    winTitle: 'FLAG{ret2libc}',
+    winMsg: 'You called system("/bin/sh") without writing any code on the stack! By reusing functions already in memory, you bypassed NX. This technique is called "return to libc" and it was the first major NX bypass.',
+  },
+
+  // ── Exercise 12: ROP Basics ──
+  {
+    title: '12: ROP Basics',
+    unit: 3,
+    desc: 'Now let\'s chain multiple small code snippets ("gadgets") together! Each gadget ends with <strong>ret</strong>, which pops the next address off the stack and jumps there. Your job: use the gadgets to write a magic value (<strong>0xdeadbeef</strong>) to a special address, then jump to <strong>win()</strong>. Click gadgets in the table to add their addresses to your payload.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: '// NX enabled — no shellcode allowed', cls: 'cmt' },
+      { text: '// But we found these useful "gadgets":', cls: 'cmt' },
+      { text: '// 0x08048300: pop eax; ret', cls: 'cmt' },
+      { text: '// 0x08048304: pop ebx; ret', cls: 'cmt' },
+      { text: '// 0x08048308: mov [ebx], eax; ret', cls: 'cmt' },
+      { text: '', cls: '' },
+      { text: 'int flag_check = 0; // at 0x0804a040', cls: 'highlight' },
+      { text: '', cls: '' },
+      { text: 'void win() {', cls: '' },
+      { text: '    if (flag_check == 0xdeadbeef)', cls: '' },
+      { text: '        printf("FLAG{rop_chain}\\n");', cls: '' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void vuln() {', cls: '', fn: true },
+      { text: '    char buf[16];', cls: '' },
+      { text: '    gets(buf);', cls: 'highlight vuln' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    vuln();', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+    ],
+    mode: 'input-hex',
+    bufSize: 16,
+    showSymbols: true,
+    showBuilder: false,
+    showGadgetTable: true,
+    aslr: false,
+    nx: true,
+    rop: true,
+    gadgets: {
+      0x08048300: 'pop eax; ret',
+      0x08048304: 'pop ebx; ret',
+      0x08048308: 'mov [ebx], eax; ret',
+    },
+    flagAddr: 0x0804a040,
+    magicValue: 0xdeadbeef,
+    check() {
+      return state.ropWin === true;
+    },
+    winTitle: 'FLAG{rop_chain}',
+    winMsg: 'You chained gadgets together like Lego blocks! Each "pop; ret" loaded a value into a register, then "mov [ebx], eax; ret" wrote it to memory. This is Return-Oriented Programming (ROP) — the main technique for bypassing NX in real exploits.',
+  },
+
+  // ── Exercise 13: Stack Pivot ──
+  {
+    title: '13: Stack Pivot',
+    unit: 3,
+    desc: 'The overflow is too small for your full ROP chain — you can only overwrite the go-back address and a couple words. But your buffer is at a <strong>known address</strong>! Write the ROP chain <em>inside</em> the buffer, then use <strong>xchg eax, esp; ret</strong> to move the stack pointer to your buffer. The CPU will start executing your chain from there.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: '// Gadgets:', cls: 'cmt' },
+      { text: '// 0x08048300: pop eax; ret', cls: 'cmt' },
+      { text: '// 0x08048304: pop ebx; ret', cls: 'cmt' },
+      { text: '// 0x08048308: mov [ebx], eax; ret', cls: 'cmt' },
+      { text: '// 0x0804830c: xchg eax, esp; ret', cls: 'cmt' },
+      { text: '', cls: '' },
+      { text: 'int flag_check = 0; // at 0x0804a040', cls: 'highlight' },
+      { text: '', cls: '' },
+      { text: 'void win() {', cls: '' },
+      { text: '    if (flag_check == 0xdeadbeef)', cls: '' },
+      { text: '        printf("FLAG{stack_pivot}\\n");', cls: '' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void vuln() {', cls: '', fn: true },
+      { text: '    char buf[16];', cls: '' },
+      { text: '    gets(buf);', cls: 'highlight vuln' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    vuln();', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+    ],
+    mode: 'input-hex',
+    bufSize: 16,
+    showSymbols: true,
+    showBuilder: false,
+    showGadgetTable: true,
+    aslr: false,
+    nx: true,
+    rop: true,
+    pivot: true,
+    gadgets: {
+      0x08048300: 'pop eax; ret',
+      0x08048304: 'pop ebx; ret',
+      0x08048308: 'mov [ebx], eax; ret',
+      0x0804830c: 'xchg eax, esp; ret',
+    },
+    flagAddr: 0x0804a040,
+    magicValue: 0xdeadbeef,
+    check() {
+      return state.ropWin === true;
+    },
+    winTitle: 'FLAG{stack_pivot}',
+    winMsg: 'You moved the stack pointer into your buffer! By "pivoting" ESP to controlled data, you turned a tiny overflow into a full ROP chain. Stack pivoting is essential when overflow space is limited.',
+  },
+
+  // ── Exercise 14: SROP ──
+  {
+    title: '14: SROP',
+    unit: 3,
+    desc: 'Signal Return Oriented Programming — the ultimate shortcut. When the OS handles a signal, it saves ALL registers on the stack. When the signal handler returns, <strong>sigreturn</strong> restores them. If you build a fake signal frame and call sigreturn, you set <em>every register at once</em> — including EIP (where to jump). Fill in the frame below and set EIP to <strong>win()</strong>.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '#include <signal.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: '// sigreturn gadget at 0x080481b0', cls: 'cmt' },
+      { text: '// When sigreturn runs, it reads a', cls: 'cmt' },
+      { text: '// "signal frame" from the stack and', cls: 'cmt' },
+      { text: '// sets ALL registers from it!', cls: 'cmt' },
+      { text: '', cls: '' },
+      { text: 'void win() {', cls: '' },
+      { text: '    printf("FLAG{srop}\\n");', cls: '' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void vuln() {', cls: '', fn: true },
+      { text: '    char buf[16];', cls: '' },
+      { text: '    gets(buf);', cls: 'highlight vuln' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    vuln();', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+    ],
+    mode: 'input-hex',
+    bufSize: 16,
+    showSymbols: true,
+    showBuilder: false,
+    showSigframe: true,
+    aslr: false,
+    nx: true,
+    srop: true,
+    check() {
+      return state.sropWin === true;
+    },
+    winTitle: 'FLAG{srop}',
+    winMsg: 'You faked a signal frame and used sigreturn to set every register at once! SROP is incredibly powerful — with one gadget (sigreturn) you can set up any register state you want. It\'s used in advanced exploits when gadgets are scarce.',
+  },
 ];
 
 const UNITS = [
   { id: 1, name: 'STACK', exercises: [0,1,2,3,4] },
   { id: 2, name: 'LOGIC', exercises: [5, 6, 7, 8, 9] },
-  { id: 3, name: 'STACK II', exercises: [] },
+  { id: 3, name: 'STACK II', exercises: [10, 11, 12, 13] },
   { id: 4, name: 'HEAP', exercises: [] },
   { id: 5, name: 'HEAP II', exercises: [] },
   { id: 6, name: 'FINAL', exercises: [] },
@@ -1068,9 +1297,14 @@ function renderStack() {
 
     const labelEl = document.createElement('span');
     labelEl.className = 'stack-label';
-    if (offset === sim.bufSize + sim.canarySize + 4) {
+    const retStart = sim.bufSize + sim.canarySize + 4;
+    if (offset === retStart) {
       const retVal = sim.getRetAddr();
       labelEl.innerHTML = '← <span style="color:var(--amber)">Go-Back Address</span> = ' + hex8(retVal);
+    } else if (offset === retStart + 4 && sim.totalSize > retStart + 4) {
+      labelEl.innerHTML = '← <span style="color:var(--text-dim)">chain data (system ret / gadget args)</span>';
+    } else if (offset > retStart + 4 && offset < sim.totalSize) {
+      labelEl.innerHTML = '<span style="color:var(--text-dim)">chain data</span>';
     } else if (offset === sim.bufSize + sim.canarySize) {
       labelEl.innerHTML = '← <span style="color:var(--blue)">Saved Bookmark (EBP)</span>';
     } else if (sim.useCanary && offset === sim.bufSize) {
@@ -1292,9 +1526,9 @@ function renderInput(ex) {
     let html = '<h4>Functions In The Program</h4>';
     for (const [name, addr] of Object.entries(state.symbols)) {
       const isTarget = name === 'win';
-      const note = isTarget ? '← jump here!' : '';
+      const note = isTarget ? '← jump here!' : (name === 'system' ? '← call this' : (name === 'binsh' ? '← argument for system()' : ''));
       html += `<div class="sym-row ${isTarget ? 'target' : ''}">
-        <span class="sym-name">${name}()</span>
+        <span class="sym-name">${name === 'binsh' ? '"/bin/sh"' : name + '()'}</span>
         <span class="sym-addr">${hex8(addr)}</span>
         <span class="sym-note">${note}</span>
       </div>`;
@@ -1302,6 +1536,56 @@ function renderInput(ex) {
     syms.innerHTML = html;
   } else {
     syms.style.display = 'none';
+  }
+
+  // Gadget table
+  const gadgetDiv = document.getElementById('gadget-table');
+  if (ex.showGadgetTable && ex.gadgets) {
+    gadgetDiv.style.display = 'block';
+    let ghtml = '<h4>Available Gadgets (click to add address to payload)</h4>';
+    for (const [addr, asm] of Object.entries(ex.gadgets)) {
+      const addrNum = parseInt(addr);
+      ghtml += `<div class="gadget-row" onclick="appendGadgetAddr('${hex8(addrNum)}')">
+        <span class="gadget-addr">${hex8(addrNum)}</span>
+        <span class="gadget-asm">${asm}</span>
+      </div>`;
+    }
+    gadgetDiv.innerHTML = ghtml;
+  } else {
+    gadgetDiv.style.display = 'none';
+  }
+
+  // Register display
+  const regDiv = document.getElementById('register-display');
+  if (ex.rop || ex.srop) {
+    regDiv.style.display = 'grid';
+    renderRegisters();
+  } else {
+    regDiv.style.display = 'none';
+  }
+
+  // Sigframe builder
+  const sigDiv = document.getElementById('sigframe-builder');
+  if (ex.showSigframe) {
+    sigDiv.style.display = 'block';
+    sigDiv.innerHTML = `
+      <h4>Signal Frame Builder</h4>
+      <div style="color:var(--text-dim);margin-bottom:0.5rem">Set register values for the fake signal frame. EIP controls where the program jumps.</div>
+      <div class="sigframe-row"><label>EIP:</label><input id="sf-eip" placeholder="0x08048150"></div>
+      <div class="sigframe-row"><label>ESP:</label><input id="sf-esp" placeholder="0xbfff0200" value="0xbfff0200"></div>
+      <div class="sigframe-row"><label>EAX:</label><input id="sf-eax" placeholder="0x00000000" value="0x00000000"></div>
+      <div class="sigframe-row"><label>EBX:</label><input id="sf-ebx" placeholder="0x00000000" value="0x00000000"></div>
+      <div class="sigframe-row"><label>ECX:</label><input id="sf-ecx" placeholder="0x00000000" value="0x00000000"></div>
+      <div class="sigframe-row"><label>EDX:</label><input id="sf-edx" placeholder="0x00000000" value="0x00000000"></div>
+      <div style="margin-top:0.5rem">
+        <button onclick="buildSigframe()" style="background:transparent;border:1px solid var(--green);color:var(--green);font-family:var(--font);font-size:11px;padding:0.2rem 0.5rem;cursor:pointer">
+          Build Frame &amp; Copy to Input ↑
+        </button>
+      </div>
+      <div id="sigframe-preview" style="color:var(--yellow);word-break:break-all;margin-top:0.5rem;padding:0.35rem;background:#0a0a0a;min-height:1.5em;font-size:10px"></div>
+    `;
+  } else {
+    sigDiv.style.display = 'none';
   }
 }
 
@@ -1343,7 +1627,34 @@ function loadExercise(idx) {
 
   const retAddr = retAddrInMain();
   const savedEbp = 0xbfff0200;
+  // Add sigreturn to symbols for SROP exercise
+  if (ex.srop) {
+    state.symbols.sigreturn = 0x080481b0;
+  }
+
   state.sim = new StackSim(ex.bufSize, retAddr, savedEbp, undefined, ex.canary);
+
+  // Extend sim memory for exercises needing space past the return address
+  let extraBytes = 0;
+  if (ex.ret2libc) extraBytes = 8;  // system's fake return + arg
+  if (ex.rop && !ex.pivot) extraBytes = 28; // gadget1 + val + gadget2 + val + gadget3 + win = 6 words
+  if (ex.pivot) extraBytes = 12; // pop eax;ret + buf_addr + xchg;ret (chain is in buffer)
+  if (ex.srop) extraBytes = 24; // signal frame: 6 registers * 4 bytes
+  if (extraBytes > 0) {
+    const oldTotal = state.sim.totalSize;
+    const newTotal = oldTotal + extraBytes;
+    const newMem = new Uint8Array(newTotal);
+    const newWritten = new Uint8Array(newTotal);
+    const newOverflow = new Uint8Array(newTotal);
+    newMem.set(state.sim.memory);
+    newWritten.set(state.sim.written);
+    newOverflow.set(state.sim.overflowAt);
+    state.sim.memory = newMem;
+    state.sim.written = newWritten;
+    state.sim.overflowAt = newOverflow;
+    state.sim.totalSize = newTotal;
+  }
+
   state.stepIndex = 0;
   state.execSteps = null;
   state.execIndex = 0;
@@ -1353,6 +1664,16 @@ function loadExercise(idx) {
   state.fmtLeakedSecret = false;
   state.fmtWriteSuccess = false;
   state.oboWin = false;
+  state.ropWin = false;
+  state.sropWin = false;
+  state.ropEax = 0;
+  state.ropEbx = 0;
+  state.ropFlagValue = 0;
+
+  // Initialize registers for ROP/SROP exercises
+  if (ex.rop || ex.srop) {
+    state.registers = { eax: 0, ebx: 0, ecx: 0, edx: 0, esp: 0, ebp: 0, eip: 0, eflags: 0 };
+  }
 
   log('info', '═══ ' + ex.title + ' ═══');
 
@@ -1373,6 +1694,33 @@ function loadExercise(idx) {
   if (ex.canary && state.sim.useCanary) {
     log('warn', 'Bug leaked the secret tripwire value: <span class="log-addr">' + hex8(state.sim.canaryValue) + '</span> <span class="log-label">← this is the canary!</span>');
     log('info', 'The tripwire sits right after the buffer. Your payload needs: [' + state.sim.bufSize + ' bytes filler] [4 bytes canary] [4 bytes junk] [4 bytes target address]');
+  }
+
+  if (ex.ret2libc) {
+    log('info', 'NX is ON — the stack won\'t run code. But system() and "/bin/sh" are in memory!');
+    log('info', 'Payload layout: [' + ex.bufSize + ' bytes padding] [4 bytes junk EBP] [system() address] [fake return addr — anything] ["/bin/sh" address]');
+    log('info', 'When vuln() returns to system(), the CPU thinks system() was called normally. It reads the next word as system\'s own return address (we don\'t care), and the word after that as system\'s argument.');
+  }
+
+  if (ex.rop && !ex.pivot) {
+    log('info', 'NX is ON — no running code on the stack. Use ROP gadgets instead!');
+    log('info', 'Each gadget is a tiny snippet ending in "ret". When one gadget\'s ret executes, it pops the next address from the stack and jumps there — chaining them together.');
+    log('info', 'Goal: write 0xdeadbeef to flag_check (' + hex8(ex.flagAddr) + '), then jump to win().');
+    log('info', 'Chain: [padding] [junk EBP] [pop eax;ret] [0xdeadbeef] [pop ebx;ret] [flag_check addr] [mov [ebx],eax;ret] [win()]');
+  }
+
+  if (ex.pivot) {
+    log('info', 'The overflow only gives you a few words past the go-back address — not enough for a full chain.');
+    log('info', 'But the buffer is at a known address: <span class="log-addr">' + hex8(state.sim.baseAddr) + '</span>');
+    log('info', 'Put your ROP chain inside the buffer. Then in the overflow: [junk EBP] [pop eax;ret] [buffer addr] [xchg eax,esp;ret]');
+    log('info', 'The xchg swaps EAX and ESP — moving the stack pointer to your buffer, where your full chain waits!');
+  }
+
+  if (ex.srop) {
+    log('info', 'NX is ON. We have a sigreturn gadget at <span class="log-addr">' + hex8(state.symbols.sigreturn) + '</span>');
+    log('info', 'When the OS delivers a signal, it saves all registers in a "signal frame" on the stack. sigreturn() reads that frame and restores every register.');
+    log('info', 'If we put a FAKE signal frame on the stack and call sigreturn, we control every register — including EIP (where the program jumps next)!');
+    log('info', 'Use the Signal Frame Builder below to set EIP to win(), then build your payload.');
   }
 
   if (ex.mode !== 'step') {
@@ -1800,13 +2148,46 @@ function generateExecSteps(ex, bytes) {
   });
 
   // 10. Jump destination
-  if (!ex.offByOne) {
+  if (!ex.offByOne && !ex.ret2libc && !ex.rop && !ex.srop) {
     steps.push({
       label: 'Jump! Where does the program go?',
       srcLine: -1,
       logs: [],
       action() {},
       jumpCheck: true
+    });
+  }
+
+  // ret2libc check
+  if (ex.ret2libc) {
+    steps.push({
+      label: 'ret2libc — calling system()?',
+      srcLine: -1,
+      logs: [],
+      action() {},
+      ret2libcCheck: true
+    });
+  }
+
+  // ROP chain execution
+  if (ex.rop) {
+    steps.push({
+      label: 'ROP chain — executing gadgets',
+      srcLine: -1,
+      logs: [],
+      action() {},
+      ropChainExec: true
+    });
+  }
+
+  // SROP execution
+  if (ex.srop) {
+    steps.push({
+      label: 'SROP — sigreturn restores registers',
+      srcLine: -1,
+      logs: [],
+      action() {},
+      sropExec: true
     });
   }
 
@@ -1949,8 +2330,228 @@ function execCurrentStep() {
     }
   }
 
+  // ret2libc check
+  if (step.ret2libcCheck) {
+    const retAddr = sim.getRetAddr();
+    const systemAddr = state.symbols.system;
+    const binshAddr = state.symbols.binsh;
+
+    log('action', 'Go-back address: <span class="log-addr">' + hex8(retAddr) + '</span>');
+
+    if (retAddr === systemAddr) {
+      log('success', '→ Jumping to system()!');
+      // Read system's fake return addr and argument
+      const fakeRetOffset = sim.bufSize + sim.canarySize + sim.ebpSize + sim.retSize;
+      const argOffset = fakeRetOffset + 4;
+      const fakeRet = sim._readLE(fakeRetOffset, 4);
+      const arg = sim._readLE(argOffset, 4);
+      log('action', 'system() reads its call frame from the stack:');
+      log('action', '  Fake return address: <span class="log-addr">' + hex8(fakeRet) + '</span> (don\'t care)');
+      log('action', '  Argument: <span class="log-addr">' + hex8(arg) + '</span>' +
+        (arg === binshAddr ? ' → "/bin/sh"' : ' → not "/bin/sh"!'));
+
+      if (arg === binshAddr) {
+        log('success', '→ system("/bin/sh") — shell spawned!');
+        if (ex && ex.winTitle) {
+          showSuccess(ex.winTitle, ex.winMsg);
+          state.completed.add(state.currentEx);
+          saveProgress();
+          renderNav();
+        }
+      } else {
+        log('error', 'system() was called but the argument isn\'t "/bin/sh". Put the "/bin/sh" address (' + hex8(binshAddr) + ') 8 bytes after the go-back address: [system addr] [4 bytes anything] ["/bin/sh" addr]');
+      }
+    } else {
+      const nxEnabled = true;
+      const isStackAddr = retAddr >= 0xbfff0000 && retAddr < 0xc0000000;
+      if (isStackAddr && nxEnabled) {
+        log('error', '→ CRASH: tried to run code on the stack but NX is ON!');
+        log('info', 'Instead of jumping to the stack, jump to system() at <span class="log-addr">' + hex8(systemAddr) + '</span>');
+      } else if (retAddr === state.symbols.win) {
+        log('success', '→ Jumped to win()! But try calling system("/bin/sh") for the ret2libc technique.');
+      } else {
+        log('error', '→ CRASH! Jumped to <span class="log-addr">' + hex8(retAddr) + '</span>. Set the go-back address to system() at <span class="log-addr">' + hex8(systemAddr) + '</span>');
+      }
+    }
+  }
+
+  // ROP chain execution
+  if (step.ropChainExec) {
+    const retAddr = sim.getRetAddr();
+    const retOffset = sim.bufSize + sim.canarySize + sim.ebpSize;
+
+    log('action', 'Starting ROP chain from go-back address: <span class="log-addr">' + hex8(retAddr) + '</span>');
+
+    // Read chain from the payload starting at ret addr position
+    let esp = retOffset + 4; // points past the initial ret addr (already "popped")
+    let eip = retAddr;
+    let chainOk = true;
+    let maxSteps = 20;
+    let stepCount = 0;
+
+    // For pivot exercises, detect the pivot
+    let pivoted = false;
+
+    while (chainOk && stepCount < maxSteps) {
+      stepCount++;
+      // Look up current EIP in gadgets
+      const gadgetStr = ex.gadgets ? ex.gadgets[eip] : null;
+
+      if (!gadgetStr) {
+        // Check if it's win()
+        if (eip === state.symbols.win) {
+          log('success', '→ EIP = <span class="log-addr">' + hex8(eip) + '</span> = win()!');
+          updateRegister('eip', eip);
+          // Check if magic value was written
+          if (ex.flagAddr && ex.magicValue) {
+            const flagVal = state.ropFlagValue || 0;
+            if (flagVal === ex.magicValue) {
+              log('success', '→ flag_check == 0x' + ex.magicValue.toString(16) + ' — condition met!');
+              state.ropWin = true;
+              if (ex.winTitle) {
+                showSuccess(ex.winTitle, ex.winMsg);
+                state.completed.add(state.currentEx);
+                saveProgress();
+                renderNav();
+              }
+            } else {
+              log('error', '→ flag_check is ' + hex8(flagVal) + ', not ' + hex8(ex.magicValue) + '. The ROP chain needs to write the magic value before jumping to win().');
+            }
+          }
+          break;
+        } else {
+          log('error', '→ EIP = <span class="log-addr">' + hex8(eip) + '</span> — unknown address! Chain broken.');
+          const isStackAddr = eip >= 0xbfff0000 && eip < 0xc0000000;
+          if (isStackAddr) {
+            log('error', 'Tried to execute on the stack — NX blocks this! Use gadget addresses instead.');
+          }
+          chainOk = false;
+          break;
+        }
+      }
+
+      log('action', 'Execute gadget at <span class="log-addr">' + hex8(eip) + '</span>: <strong>' + gadgetStr + '</strong>');
+      updateRegister('eip', eip);
+      updateRegister('esp', sim.baseAddr + esp);
+
+      // Parse and simulate the gadget
+      const parts = gadgetStr.split(';').map(s => s.trim()).filter(s => s && s !== 'ret');
+
+      for (const instr of parts) {
+        if (instr.startsWith('pop ')) {
+          const reg = instr.split(' ')[1];
+          if (esp + 4 <= sim.totalSize) {
+            const val = sim._readLE(esp, 4);
+            esp += 4;
+            log('action', '  pop ' + reg + ' → <span class="log-addr">' + hex8(val) + '</span> (read from stack)');
+            updateRegister(reg, val);
+            if (reg === 'eax') state.ropEax = val;
+            if (reg === 'ebx') state.ropEbx = val;
+          } else {
+            log('error', '  pop ' + reg + ' — ran out of stack data!');
+            chainOk = false;
+          }
+        } else if (instr === 'mov [ebx], eax') {
+          const ebxVal = state.ropEbx || 0;
+          const eaxVal = state.ropEax || 0;
+          log('action', '  mov [ebx], eax → writing <span class="log-addr">' + hex8(eaxVal) + '</span> to address <span class="log-addr">' + hex8(ebxVal) + '</span>');
+          if (ex.flagAddr && ebxVal === ex.flagAddr) {
+            state.ropFlagValue = eaxVal;
+            log('success', '  Wrote to flag_check!');
+          }
+        } else if (instr === 'xchg eax, esp') {
+          const oldEax = state.ropEax || 0;
+          log('action', '  xchg eax, esp → ESP is now <span class="log-addr">' + hex8(oldEax) + '</span> (pivoting stack!)');
+          // Convert the address to an offset into sim memory
+          const newEsp = oldEax - sim.baseAddr;
+          if (newEsp >= 0 && newEsp < sim.totalSize) {
+            esp = newEsp;
+            pivoted = true;
+            log('success', '  Stack pivoted to buffer! ESP now points into our controlled data.');
+            updateRegister('esp', oldEax);
+          } else {
+            log('error', '  Bad pivot address! ESP points outside our memory.');
+            chainOk = false;
+          }
+        }
+      }
+
+      // ret: pop next EIP from stack
+      if (chainOk && esp + 4 <= sim.totalSize) {
+        eip = sim._readLE(esp, 4);
+        esp += 4;
+        log('action', '  ret → pop EIP = <span class="log-addr">' + hex8(eip) + '</span>');
+        updateRegister('esp', sim.baseAddr + esp);
+      } else if (chainOk) {
+        log('error', '  ret — ran out of stack data!');
+        chainOk = false;
+      }
+    }
+
+    if (stepCount >= maxSteps) {
+      log('error', 'Chain too long — possible infinite loop. Check your payload.');
+    }
+  }
+
+  // SROP execution
+  if (step.sropExec) {
+    const retAddr = sim.getRetAddr();
+    const sigreturnAddr = state.symbols.sigreturn || 0x080481b0;
+
+    log('action', 'Go-back address: <span class="log-addr">' + hex8(retAddr) + '</span>');
+
+    if (retAddr === sigreturnAddr) {
+      log('success', '→ Calling sigreturn()!');
+      log('action', 'sigreturn reads the signal frame from the stack and restores all registers...');
+
+      // Read the signal frame from the stack (starts right after the ret addr)
+      const frameStart = sim.bufSize + sim.canarySize + sim.ebpSize + sim.retSize;
+      // Frame layout: EAX(4) EBX(4) ECX(4) EDX(4) ESP(4) EIP(4) = 24 bytes
+      if (frameStart + 24 <= sim.totalSize) {
+        const eax = sim._readLE(frameStart + 0, 4);
+        const ebx = sim._readLE(frameStart + 4, 4);
+        const ecx = sim._readLE(frameStart + 8, 4);
+        const edx = sim._readLE(frameStart + 12, 4);
+        const esp = sim._readLE(frameStart + 16, 4);
+        const eip = sim._readLE(frameStart + 20, 4);
+
+        updateRegister('eax', eax);
+        updateRegister('ebx', ebx);
+        updateRegister('ecx', ecx);
+        updateRegister('edx', edx);
+        updateRegister('esp', esp);
+        updateRegister('eip', eip);
+
+        log('action', '  EAX = <span class="log-addr">' + hex8(eax) + '</span>');
+        log('action', '  EBX = <span class="log-addr">' + hex8(ebx) + '</span>');
+        log('action', '  ECX = <span class="log-addr">' + hex8(ecx) + '</span>');
+        log('action', '  EDX = <span class="log-addr">' + hex8(edx) + '</span>');
+        log('action', '  ESP = <span class="log-addr">' + hex8(esp) + '</span>');
+        log('action', '  EIP = <span class="log-addr">' + hex8(eip) + '</span>');
+
+        if (eip === state.symbols.win) {
+          log('success', '→ EIP points to win() — all registers set in one shot!');
+          state.sropWin = true;
+          if (ex && ex.winTitle) {
+            showSuccess(ex.winTitle, ex.winMsg);
+            state.completed.add(state.currentEx);
+            saveProgress();
+            renderNav();
+          }
+        } else {
+          log('error', '→ EIP = ' + hex8(eip) + ' — that\'s not win() (' + hex8(state.symbols.win) + '). Set EIP in the signal frame to win\'s address.');
+        }
+      } else {
+        log('error', 'Signal frame doesn\'t fit on the stack! Your payload needs to be longer: padding + junk EBP + sigreturn addr + 24 bytes of frame.');
+      }
+    } else {
+      log('error', '→ Go-back address is <span class="log-addr">' + hex8(retAddr) + '</span> — should be sigreturn at <span class="log-addr">' + hex8(sigreturnAddr) + '</span>');
+    }
+  }
+
   renderStack();
   renderLog();
+  if (ex && (ex.rop || ex.srop)) renderRegisters();
   state.execIndex++;
   updateStepCounter();
   return state.execIndex < state.execSteps.length;
@@ -2273,6 +2874,83 @@ function onSignednessInput() {
   }
 
   check.innerHTML = html;
+}
+
+function renderRegisters() {
+  const div = document.getElementById('register-display');
+  if (!div || !state.registers) return;
+  div.innerHTML = '';
+  for (const [name, val] of Object.entries(state.registers)) {
+    const entry = document.createElement('div');
+    entry.className = 'reg-entry';
+    entry.innerHTML = `<span class="reg-name">${name.toUpperCase()}</span><span class="reg-val" id="reg-${name}">${hex8(val)}</span>`;
+    div.appendChild(entry);
+  }
+}
+
+function updateRegister(name, value) {
+  if (!state.registers) return;
+  state.registers[name] = value >>> 0;
+  const el = document.getElementById('reg-' + name);
+  if (el) {
+    el.textContent = hex8(value >>> 0);
+    el.classList.add('changed');
+    setTimeout(() => el.classList.remove('changed'), 500);
+  }
+}
+
+function appendGadgetAddr(addrHex) {
+  const ta = document.getElementById('payload-input');
+  if (!ta) return;
+  const addrVal = parseInt(addrHex, 16);
+  const le = [(addrVal) & 0xff, (addrVal >>> 8) & 0xff, (addrVal >>> 16) & 0xff, (addrVal >>> 24) & 0xff];
+  const hexStr = le.map(b => hex2(b)).join(' ');
+  if (ta.value && !ta.value.endsWith(' ')) ta.value += ' ';
+  ta.value += hexStr;
+  onPayloadInput();
+}
+
+function buildSigframe() {
+  const fields = ['eip', 'esp', 'eax', 'ebx', 'ecx', 'edx'];
+  const vals = {};
+  for (const f of fields) {
+    const el = document.getElementById('sf-' + f);
+    const v = el ? parseInt(el.value.replace(/^0x/i, ''), 16) : 0;
+    vals[f] = isNaN(v) ? 0 : v >>> 0;
+  }
+
+  // Build a simplified 32-bit signal frame (24 bytes for our 6 registers)
+  // Real sigframes are bigger, but we simplify for teaching
+  // Layout: EAX, EBX, ECX, EDX, ESP, EIP (each 4 bytes = 24 bytes total)
+  const frameRegs = [vals.eax, vals.ebx, vals.ecx, vals.edx, vals.esp, vals.eip];
+  const frameBytes = [];
+  for (const v of frameRegs) {
+    frameBytes.push(v & 0xff, (v >>> 8) & 0xff, (v >>> 16) & 0xff, (v >>> 24) & 0xff);
+  }
+
+  // Build full payload: padding + junk EBP + sigreturn addr + frame
+  const sim = state.sim;
+  const sigreturnAddr = state.symbols.sigreturn || 0x080481b0;
+  const padding = [];
+  for (let i = 0; i < sim.bufSize; i++) padding.push(0x41);
+  const junkEbp = [0x42, 0x42, 0x42, 0x42];
+  const sigretLE = [sigreturnAddr & 0xff, (sigreturnAddr >>> 8) & 0xff, (sigreturnAddr >>> 16) & 0xff, (sigreturnAddr >>> 24) & 0xff];
+
+  const all = [...padding, ...junkEbp, ...sigretLE, ...frameBytes];
+  const hexStr = all.map(b => hex2(b)).join(' ');
+
+  const ta = document.getElementById('payload-input');
+  if (ta) {
+    ta.value = hexStr;
+    state.inputMode = 'hex';
+    onPayloadInput();
+  }
+
+  const preview = document.getElementById('sigframe-preview');
+  if (preview) {
+    preview.innerHTML = `<strong>Payload:</strong> ${sim.bufSize} padding + 4 junk EBP + sigreturn addr + signal frame (${frameBytes.length} bytes)<br>` +
+      `EIP = ${hex8(vals.eip)} ${vals.eip === state.symbols.win ? '<span style="color:var(--green)">points to win()</span>' : '<span style="color:var(--red)">should point to win()!</span>'}`;
+  }
 }
 
 function doReset() {
