@@ -709,11 +709,128 @@ const EXERCISES = [
     winTitle: 'Secret Leaked!',
     winMsg: 'You used %x to walk up the stack and read the secret value. In real exploits, this technique leaks canaries, return addresses, and heap pointers — anything stored on the stack.',
   },
+
+  // ── Exercise 08: Format String Writing (%n) ──
+  {
+    title: '08: Format String: Writing',
+    unit: 2,
+    desc: 'The <strong>%n</strong> format specifier doesn\'t print — it <strong>writes</strong>. It stores the number of characters printed so far into a memory address on the stack. Put the right address in your input, advance with %x, then %n writes to it. Change <strong>authorized</strong> from 0 to anything else.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void win() { printf("FLAG\\n"); }', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int authorized = 0;  // at 0x0804a020', cls: 'highlight' },
+      { text: '', cls: '' },
+      { text: 'void vuln() {', cls: '', fn: true },
+      { text: '    char buf[64];', cls: '' },
+      { text: '    fgets(buf, 64, stdin);', cls: '' },
+      { text: '    printf(buf);', cls: 'highlight vuln' },
+      { text: '    if (authorized) win();', cls: 'highlight' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    vuln();', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+    ],
+    mode: 'input-fmt-write',
+    vizMode: 'stack',
+    bufSize: 64,
+    showSymbols: false,
+    showBuilder: false,
+    aslr: false,
+    fmtWrite: true,
+    targetAddr: 0x0804a020,
+    check() { return state.fmtWriteSuccess === true; },
+    winTitle: 'FLAG{format_string_write}',
+    winMsg: 'You used %n to write a value to the authorized variable! Format string bugs are powerful — they let you read AND write arbitrary memory, all through printf.',
+  },
+
+  // ── Exercise 09: Off-by-One ──
+  {
+    title: '09: Off-by-One',
+    unit: 2,
+    desc: 'The loop uses <strong>&lt;=</strong> instead of <strong>&lt;</strong>, writing one extra byte past the buffer. That single byte overwrites the low byte of the saved bookmark (EBP). This shifts where the <strong>next</strong> function reads its go-back address from — giving you sneaky indirect control.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void win() { printf("FLAG\\n"); }', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void vuln() {', cls: '', fn: true },
+      { text: '    char buf[16];', cls: '' },
+      { text: '    int i;', cls: '' },
+      { text: '    for (i = 0; i <= 16; i++) {', cls: 'highlight vuln' },
+      { text: '        buf[i] = read_byte();', cls: '' },
+      { text: '    }', cls: '' },
+      { text: '    // writes 17 bytes — one past buf!', cls: 'cmt' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    vuln();', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+    ],
+    mode: 'input-hex',
+    vizMode: 'stack',
+    bufSize: 16,
+    showSymbols: true,
+    showBuilder: false,
+    aslr: false,
+    offByOne: true,
+    check(sim) {
+      return state.oboWin === true;
+    },
+    winTitle: 'FLAG{off_by_one}',
+    winMsg: 'One byte! You changed the low byte of the saved bookmark, which shifted where main() reads its go-back address from. On main\'s return, it jumped to win(). Off-by-one errors are dangerous even when you can\'t directly reach the return address.',
+  },
+
+  // ── Exercise 10: Signedness Bug ──
+  {
+    title: '10: Signedness Bug',
+    unit: 2,
+    desc: 'The program checks <strong>if (len > 64)</strong> to reject long inputs. But len is a <strong>signed</strong> int — negative numbers are always less than 64! When it\'s cast to <strong>unsigned</strong> for memcpy, -1 becomes 4,294,967,295. Massive overflow from a "small" number.',
+    code: [
+      { text: '#include <stdio.h>', cls: '' },
+      { text: '#include <string.h>', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void win() { printf("FLAG\\n"); }', cls: '' },
+      { text: '', cls: '' },
+      { text: 'void copy_data(int len) {', cls: '', fn: true },
+      { text: '    char buf[64];', cls: '' },
+      { text: '    if (len > 64) {', cls: 'highlight' },
+      { text: '        printf("Too long!\\n");', cls: '' },
+      { text: '        return;', cls: '' },
+      { text: '    }', cls: '' },
+      { text: '    memcpy(buf, input, (size_t)len);', cls: 'highlight vuln' },
+      { text: '    // cast to unsigned: -1 → 0xFFFFFFFF!', cls: 'cmt' },
+      { text: '}', cls: '' },
+      { text: '', cls: '' },
+      { text: 'int main() {', cls: '' },
+      { text: '    int len;', cls: '' },
+      { text: '    scanf("%d", &len);', cls: '' },
+      { text: '    copy_data(len);', cls: '' },
+      { text: '    return 0;', cls: '' },
+      { text: '}', cls: '' },
+    ],
+    mode: 'input-signedness',
+    vizMode: 'stack',
+    bufSize: 64,
+    showSymbols: true,
+    showBuilder: true,
+    aslr: false,
+    signedness: true,
+    check(sim) {
+      return sim.getRetAddr() === state.symbols.win;
+    },
+    winTitle: 'FLAG{signed_vs_unsigned}',
+    winMsg: 'The negative number slipped past the bounds check, then became a huge unsigned value. memcpy happily overwrote everything. This is why mixing signed and unsigned types is dangerous!',
+  },
 ];
 
 const UNITS = [
   { id: 1, name: 'STACK', exercises: [0,1,2,3,4] },
-  { id: 2, name: 'LOGIC', exercises: [5, 6] },
+  { id: 2, name: 'LOGIC', exercises: [5, 6, 7, 8, 9] },
   { id: 3, name: 'STACK II', exercises: [] },
   { id: 4, name: 'HEAP', exercises: [] },
   { id: 5, name: 'HEAP II', exercises: [] },
@@ -1025,6 +1142,57 @@ function renderInput(ex) {
     return;
   }
 
+  if (ex.mode === 'input-fmt-write') {
+    const targetAddr = ex.targetAddr || 0x0804a020;
+    const leBytes = [targetAddr & 0xff, (targetAddr >> 8) & 0xff, (targetAddr >> 16) & 0xff, (targetAddr >> 24) & 0xff];
+    area.innerHTML = `
+      <label style="font-size:11px;color:var(--text-dim)">Craft a format string to write to the authorized variable using %n.</label>
+      <div style="font-size:11px;color:var(--amber);margin:0.35rem 0">
+        authorized is at: <strong>${hex8(targetAddr)}</strong> → little-endian: ${leBytes.map(b => '\\x' + hex2(b)).join('')}
+      </div>
+      <div style="font-size:11px;color:var(--text-dim);margin-bottom:0.35rem">
+        Start with the address as \\x bytes, then use %x to advance past stack slots, then %n to write.<br>
+        Or use direct access: %4$n writes to stack slot 4 (where your address is).
+      </div>
+      <textarea id="payload-input" rows="2" placeholder="\\x20\\xa0\\x04\\x08%x%x%x%n"
+        style="width:100%;background:#0a0a0a;border:1px solid var(--panel-border);color:var(--text);font-family:var(--font);font-size:13px;padding:0.5rem;resize:none"></textarea>
+      <div class="controls" style="margin-top:0.5rem">
+        <button class="primary" onclick="runFmtWrite()">Run printf()</button>
+        <button onclick="doReset()">Reset</button>
+      </div>
+    `;
+    builder.style.display = 'none';
+    syms.style.display = 'none';
+    return;
+  }
+
+  if (ex.mode === 'input-signedness') {
+    area.innerHTML = `
+      <div style="margin-bottom:0.75rem">
+        <label style="font-size:11px;color:var(--text-dim)">Enter the length value (signed 32-bit integer):</label>
+        <div style="display:flex;gap:0.5rem;align-items:center;margin-top:0.35rem">
+          <input id="sign-input" type="text" placeholder="e.g. -1"
+            style="background:#0a0a0a;border:1px solid var(--panel-border);color:var(--text);font-family:var(--font);font-size:13px;padding:0.5rem;width:12em"
+            oninput="onSignednessInput()">
+        </div>
+        <div id="sign-check" style="font-size:11px;margin-top:0.35rem;min-height:3em"></div>
+      </div>
+      <div id="sign-payload" style="display:none">
+        <label style="font-size:11px;color:var(--text-dim)">Craft your payload (hex bytes) — memcpy will write a LOT more than 64 bytes:</label>
+        <textarea id="payload-input" placeholder="Enter hex bytes: 41 41 41 41 ..." oninput="onPayloadInput()" rows="2"
+          style="width:100%;background:#0a0a0a;border:1px solid var(--panel-border);color:var(--text);font-family:var(--font);font-size:13px;padding:0.5rem;resize:none;margin-top:0.35rem"></textarea>
+        <div id="step-counter" style="font-size:11px;color:var(--text-dim);margin-top:0.5rem;min-height:1.2em"></div>
+        <div class="controls" style="margin-top:0.25rem">
+          <button class="primary" onclick="doStep()">Step →</button>
+          <button onclick="doRunAll()">Run ▶▶</button>
+          <button onclick="doReset()">Reset</button>
+        </div>
+      </div>
+    `;
+    state.inputMode = 'hex';
+    return;
+  }
+
   if (ex.mode === 'step') {
     area.innerHTML = `
       <div class="controls">
@@ -1183,6 +1351,8 @@ function loadExercise(idx) {
   state.inputMode = ex.mode === 'input-hex' ? 'hex' : 'text';
   state.logMessages = [];
   state.fmtLeakedSecret = false;
+  state.fmtWriteSuccess = false;
+  state.oboWin = false;
 
   log('info', '═══ ' + ex.title + ' ═══');
 
@@ -1467,6 +1637,35 @@ function generateExecSteps(ex, bytes) {
     });
   }
 
+  // Signedness bug preamble steps
+  if (ex.signedness) {
+    const signedLen = sim.signedLen || -1;
+    steps.push({
+      label: 'scanf — read length',
+      srcLine: findCodeLine(ex, 'scanf'),
+      logs: [['action', 'scanf("%d", &len) → user entered: ' + signedLen]],
+      action() {}
+    });
+    steps.push({
+      label: 'bounds check: len > 64?',
+      srcLine: findCodeLine(ex, 'if (len'),
+      logs: [
+        ['action', 'if (' + signedLen + ' > 64) → NO, check passes!'],
+        ['warn', 'Negative numbers are always < 64 in signed comparison!'],
+      ],
+      action() {}
+    });
+    steps.push({
+      label: 'cast to unsigned for memcpy',
+      srcLine: findCodeLine(ex, 'memcpy'),
+      logs: [
+        ['action', '(size_t)' + signedLen + ' → ' + (signedLen >>> 0)],
+        ['error', 'memcpy will copy a HUGE number of bytes!'],
+      ],
+      action() {}
+    });
+  }
+
   // Detect function name for this exercise
   const fnLine = ex.code.find(l => l.fn);
   const fnName = fnLine ? (fnLine.text.match(/void\s+(\w+)/)||[])[1] || 'vuln' : 'vuln';
@@ -1527,14 +1726,19 @@ function generateExecSteps(ex, bytes) {
   // 5. gets(buf) — write word by word
   let getsLine = findCodeLine(ex, 'gets');
   if (getsLine < 0) getsLine = findCodeLine(ex, 'read_input');
-  const totalBytes = Math.min(bytes.length, sim.totalSize);
+  if (getsLine < 0) getsLine = findCodeLine(ex, 'read_byte');
+  if (getsLine < 0) getsLine = findCodeLine(ex, 'memcpy');
+  const maxWrite = ex.offByOne ? Math.min(bytes.length, sim.bufSize + 1) : Math.min(bytes.length, sim.totalSize);
+  const totalBytes = maxWrite;
 
   for (let off = 0; off < totalBytes; off += WORD) {
     const chunk = bytes.slice(off, Math.min(off + WORD, totalBytes));
     const region = sim.regionOf(off);
     const isOverflow = off >= sim.bufSize;
-    let label = 'gets(): write ';
-    if (region === 'buffer') label += 'buf[' + off + '..' + (off + chunk.length - 1) + ']';
+    let label = ex.offByOne ? 'read_byte(): write ' : ex.signedness ? 'memcpy(): write ' : 'gets(): write ';
+    if (ex.offByOne && off === sim.bufSize) {
+      label += 'OFF-BY-ONE → saved bookmark (low byte)';
+    } else if (region === 'buffer') label += 'buf[' + off + '..' + (off + chunk.length - 1) + ']';
     else if (region === 'canary') label += 'OVERFLOW → canary (tripwire!)';
     else if (region === 'ebp') label += 'OVERFLOW → saved bookmark';
     else if (region === 'ret') label += 'OVERFLOW → go-back address!';
@@ -1596,13 +1800,43 @@ function generateExecSteps(ex, bytes) {
   });
 
   // 10. Jump destination
-  steps.push({
-    label: 'Jump! Where does the program go?',
-    srcLine: -1,
-    logs: [],
-    action() {},
-    jumpCheck: true
-  });
+  if (!ex.offByOne) {
+    steps.push({
+      label: 'Jump! Where does the program go?',
+      srcLine: -1,
+      logs: [],
+      action() {},
+      jumpCheck: true
+    });
+  }
+
+  // Off-by-one: after vuln's normal return, main's frame is corrupted
+  if (ex.offByOne) {
+    steps.push({
+      label: 'vuln() returns normally',
+      srcLine: -1,
+      logs: [
+        ['action', 'vuln() returned to main() — the return address wasn\'t touched, so that was normal.'],
+      ],
+      action() {}
+    });
+    steps.push({
+      label: 'Back in main() — EBP is corrupted',
+      srcLine: findCodeLine(ex, 'return 0') >= 0 ? findCodeLine(ex, 'return 0') : -1,
+      logs: [
+        ['action', 'Returned to main() — that looked normal...'],
+        ['warn', 'But EBP is now corrupted! The low byte was overwritten by your 17th byte.'],
+      ],
+      action() {}
+    });
+    steps.push({
+      label: 'main() returns — reads go-back addr from WRONG place',
+      srcLine: -1,
+      logs: [],
+      action() {},
+      oboRetCheck: true
+    });
+  }
 
   return steps;
 }
@@ -1636,6 +1870,31 @@ function execCurrentStep() {
   if (step.retCheck) {
     const retAddr = sim.getRetAddr();
     log('action', 'Reading the go-back address: <span class="log-addr">' + hex8(retAddr) + '</span> — the program will jump here!');
+  }
+
+  if (step.oboRetCheck) {
+    const lowByte = sim.memory[sim.bufSize];
+    log('action', 'main() LEAVE — EBP low byte changed to 0x' + hex2(lowByte));
+
+    const readOffset = Math.min(lowByte % sim.bufSize, sim.bufSize - 4);
+    const fakeRet = sim._readLE(readOffset, 4);
+
+    log('action', 'main() reads go-back address from shifted location (buf+' + readOffset + ') → <span class="log-addr">' + hex8(fakeRet) + '</span>');
+
+    if (fakeRet === state.symbols.win) {
+      log('success', '→ Jumped to win() via off-by-one redirect!');
+      state.oboWin = true;
+      if (ex && ex.winTitle) {
+        showSuccess(ex.winTitle, ex.winMsg);
+        state.completed.add(state.currentEx);
+        saveProgress();
+        renderNav();
+      }
+    } else if (fakeRet === 0 || fakeRet === sim.origRetAddr) {
+      log('info', '→ Normal return — your 17th byte didn\'t shift the frame usefully. Try a different value.');
+    } else {
+      log('error', '→ CRASH! Jumped to ' + hex8(fakeRet) + ' — not a valid address. Adjust the value at buf offset ' + readOffset + '.');
+    }
   }
 
   if (step.jumpCheck) {
@@ -1876,6 +2135,144 @@ function simulateFmtRead(input) {
   }
 
   renderLog();
+}
+
+function runFmtWrite() {
+  const ta = document.getElementById('payload-input');
+  if (!ta || !ta.value.trim()) { log('info', 'Enter a format string first.'); renderLog(); return; }
+  const parsed = ta.value.replace(/\\x([0-9a-fA-F]{2})/g, (_, h) => String.fromCharCode(parseInt(h, 16)));
+  simulateFmtWrite(parsed);
+}
+
+function simulateFmtWrite(input) {
+  const ex = EXERCISES[state.currentEx];
+  if (!ex || !ex.fmtWrite) return;
+
+  state.logMessages = [];
+  state.fmtWriteSuccess = false;
+  log('info', '═══ ' + ex.title + ' ═══');
+  log('info', 'authorized is at <span class="log-addr">' + hex8(ex.targetAddr) + '</span> — currently 0');
+  log('action', 'printf(buf) — your input is the format string...');
+  log('info', '');
+
+  const bufBytes = [];
+  for (let j = 0; j < Math.min(4, input.length); j++) bufBytes.push(input.charCodeAt(j) & 0xff);
+  const addrFromBuf = bufBytes.length >= 4 ? (bufBytes[0] | (bufBytes[1] << 8) | (bufBytes[2] << 16) | (bufBytes[3] << 24)) >>> 0 : 0;
+
+  const stackSlots = [
+    { label: 'printf internal', value: 0xbfff0200 },
+    { label: 'buf pointer', value: state.sim.baseAddr },
+    { label: 'saved register', value: 0x00000040 },
+    { label: 'buf[0..3] — YOUR address bytes', value: addrFromBuf },
+  ];
+
+  let printedChars = 4;
+  let stackIdx = 0;
+  let i = 4;
+
+  if (bufBytes.length >= 4) {
+    log('info', 'First 4 bytes → address: <span class="log-addr">' + hex8(addrFromBuf) + '</span>' +
+      (addrFromBuf === ex.targetAddr ? ' <span style="color:var(--green)">✓ matches authorized!</span>' : ''));
+  }
+
+  while (i < input.length) {
+    const directMatch = input.slice(i).match(/^%(\d+)\$([xpn])/);
+    if (directMatch) {
+      const slotNum = parseInt(directMatch[1]);
+      const action = directMatch[2];
+      if ((action === 'x' || action === 'p') && slotNum <= stackSlots.length) {
+        const sv = stackSlots[slotNum - 1];
+        const hexVal = (sv.value >>> 0).toString(16).padStart(8, '0');
+        printedChars += hexVal.length;
+        log('action', '%' + slotNum + '$' + action + ' → read slot ' + slotNum + ': <span class="log-addr">0x' + hexVal + '</span> <span class="log-label">(' + sv.label + ')</span>');
+      } else if (action === 'n' && slotNum <= stackSlots.length) {
+        const sv = stackSlots[slotNum - 1];
+        log('action', '%' + slotNum + '$n → WRITE value ' + printedChars + ' to address at slot ' + slotNum + ': <span class="log-addr">' + hex8(sv.value) + '</span>');
+        if (sv.value === ex.targetAddr) {
+          log('success', 'Wrote ' + printedChars + ' to authorized! It\'s now non-zero → win() is called!');
+          state.fmtWriteSuccess = true;
+        } else {
+          log('warn', 'Wrote to ' + hex8(sv.value) + ' — that\'s not authorized (' + hex8(ex.targetAddr) + ')');
+        }
+      }
+      i += directMatch[0].length;
+      continue;
+    }
+
+    if (input[i] === '%' && i + 1 < input.length) {
+      const spec = input[i + 1];
+      if ((spec === 'x' || spec === 'p') && stackIdx < stackSlots.length) {
+        const sv = stackSlots[stackIdx];
+        const hexVal = (sv.value >>> 0).toString(16).padStart(8, '0');
+        printedChars += hexVal.length;
+        log('action', '%' + spec + ' → read slot ' + (stackIdx + 1) + ': <span class="log-addr">0x' + hexVal + '</span> <span class="log-label">(' + sv.label + ')</span>');
+        stackIdx++;
+        i += 2;
+        continue;
+      } else if (spec === 'n') {
+        if (stackIdx < stackSlots.length) {
+          const sv = stackSlots[stackIdx];
+          log('action', '%n → WRITE value ' + printedChars + ' to address at slot ' + (stackIdx + 1) + ': <span class="log-addr">' + hex8(sv.value) + '</span>');
+          if (sv.value === ex.targetAddr) {
+            log('success', 'Wrote ' + printedChars + ' to authorized! It\'s now non-zero → win() is called!');
+            state.fmtWriteSuccess = true;
+          } else {
+            log('warn', 'Wrote to ' + hex8(sv.value) + ' — not authorized. Use %x to advance to slot 4 first.');
+          }
+          stackIdx++;
+        }
+        i += 2;
+        continue;
+      }
+    }
+    printedChars++;
+    i++;
+  }
+
+  log('info', '');
+  if (state.fmtWriteSuccess) {
+    showSuccess(ex.winTitle, ex.winMsg);
+    state.completed.add(state.currentEx);
+    saveProgress();
+    renderNav();
+  } else if (addrFromBuf !== ex.targetAddr) {
+    log('info', 'Hint: start your input with the address of authorized (' + hex8(ex.targetAddr) + ') as \\x bytes in little-endian order.');
+  } else {
+    log('info', 'Address is correct! Use %x to advance past slots 1-3, then %n to write. Or try %4$n for direct access.');
+  }
+  renderLog();
+}
+
+function onSignednessInput() {
+  const input = document.getElementById('sign-input');
+  const check = document.getElementById('sign-check');
+  const payloadDiv = document.getElementById('sign-payload');
+  if (!input || !check) return;
+
+  const val = parseInt(input.value);
+  if (isNaN(val)) { check.innerHTML = ''; if (payloadDiv) payloadDiv.style.display = 'none'; return; }
+
+  const unsigned = val >>> 0;
+  const passesCheck = !(val > 64);
+  let html = '';
+
+  html += '<div>if (len > 64): ' + val + ' > 64? → <strong style="color:' + (passesCheck ? 'var(--green)' : 'var(--red)') + '">' + (passesCheck ? 'NO — check passes!' : 'YES — rejected!') + '</strong></div>';
+
+  if (passesCheck && val < 0) {
+    html += '<div style="color:var(--red);margin-top:0.25rem">Cast to unsigned: (size_t)' + val + ' → <strong>' + unsigned + '</strong> (0x' + unsigned.toString(16).toUpperCase() + ')</div>';
+    html += '<div style="color:var(--red)">memcpy will try to copy ' + unsigned + ' bytes!</div>';
+    if (payloadDiv) payloadDiv.style.display = 'block';
+    state.sim.signedLen = val;
+    state.execSteps = null;
+    state.execIndex = 0;
+  } else if (passesCheck && val >= 0) {
+    html += '<div style="color:var(--text-dim)">Length ' + val + ' is fine — no overflow.</div>';
+    if (payloadDiv) payloadDiv.style.display = 'none';
+  } else {
+    if (payloadDiv) payloadDiv.style.display = 'none';
+  }
+
+  check.innerHTML = html;
 }
 
 function doReset() {
