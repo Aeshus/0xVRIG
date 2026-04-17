@@ -2,19 +2,15 @@ import { Exercise } from '../types';
 import { AsmInstruction } from '@/engine/x86/types';
 
 const instructions: AsmInstruction[] = [
-  // main prologue
-  { addr: 0x08048000, bytes: [0x55], mnemonic: 'push', operands: 'ebp', comment: 'Save caller\'s frame pointer' },
-  { addr: 0x08048001, bytes: [0x89, 0xe5], mnemonic: 'mov', operands: 'ebp, esp', comment: 'Set up new frame pointer' },
-  { addr: 0x08048003, bytes: [0x83, 0xec, 0x10], mnemonic: 'sub', operands: 'esp, 16', comment: 'Allocate 16 bytes for locals' },
-  // local variables
-  { addr: 0x08048006, bytes: [0xc7, 0x45, 0xfc, 0x0a, 0x00, 0x00, 0x00], mnemonic: 'mov', operands: '[ebp-4], 10', comment: 'int x = 10  (local at [ebp-4])' },
-  { addr: 0x0804800d, bytes: [0xc7, 0x45, 0xf8, 0x14, 0x00, 0x00, 0x00], mnemonic: 'mov', operands: '[ebp-8], 20', comment: 'int y = 20  (local at [ebp-8])' },
-  // compute x + y
-  { addr: 0x08048014, bytes: [0x8b, 0x45, 0xfc], mnemonic: 'mov', operands: 'eax, [ebp-4]', comment: 'Load x' },
-  { addr: 0x08048017, bytes: [0x03, 0x45, 0xf8], mnemonic: 'add', operands: 'eax, [ebp-8]', comment: 'EAX = x + y = 30' },
-  // epilogue
-  { addr: 0x0804801a, bytes: [0xc9], mnemonic: 'leave', operands: '', comment: 'Restore ESP and EBP (undo prologue)' },
-  { addr: 0x0804801b, bytes: [0xf4], mnemonic: 'hlt', operands: '', comment: 'EAX = 30, stack frame destroyed' },
+  { addr: 0x08048000, bytes: [0x55], mnemonic: 'push', operands: 'ebp', comment: 'Prologue: save old frame pointer' },
+  { addr: 0x08048001, bytes: [0x89, 0xe5], mnemonic: 'mov', operands: 'ebp, esp', comment: 'Prologue: set new frame pointer' },
+  { addr: 0x08048003, bytes: [0x83, 0xec, 0x10], mnemonic: 'sub', operands: 'esp, 16', comment: 'Prologue: allocate space for locals' },
+  { addr: 0x08048006, bytes: [0xc7, 0x45, 0xfc, 0x0a, 0x00, 0x00, 0x00], mnemonic: 'mov', operands: '[ebp-4], 10', comment: 'Store local variable x' },
+  { addr: 0x0804800d, bytes: [0xc7, 0x45, 0xf8, 0x14, 0x00, 0x00, 0x00], mnemonic: 'mov', operands: '[ebp-8], 20', comment: 'Store local variable y' },
+  { addr: 0x08048014, bytes: [0x8b, 0x45, 0xfc], mnemonic: 'mov', operands: 'eax, [ebp-4]', comment: 'Load x into EAX' },
+  { addr: 0x08048017, bytes: [0x03, 0x45, 0xf8], mnemonic: 'add', operands: 'eax, [ebp-8]', comment: 'Add y to EAX' },
+  { addr: 0x0804801a, bytes: [0xc9], mnemonic: 'leave', operands: '', comment: 'Epilogue: restore frame' },
+  { addr: 0x0804801b, bytes: [0xf4], mnemonic: 'hlt', operands: '', comment: '' },
 ];
 
 export const asm09: Exercise = {
@@ -42,20 +38,24 @@ export const asm09: Exercise = {
       { text: 'mov ebp, esp      ; new frame pointer', cls: 'asm' },
       { text: 'sub esp, 16       ; space for locals', cls: 'asm' },
       { text: '', cls: '' },
-      { text: 'mov [ebp-4], 10   ; int x = 10', cls: 'asm' },
-      { text: 'mov [ebp-8], 20   ; int y = 20', cls: 'asm' },
-      { text: 'mov eax, [ebp-4]  ; load x', cls: 'asm' },
-      { text: 'add eax, [ebp-8]  ; eax = x + y', cls: 'asm' },
+      { text: 'mov [ebp-4], 10   ; x', cls: 'asm' },
+      { text: 'mov [ebp-8], 20   ; y', cls: 'asm' },
+      { text: 'mov eax, [ebp-4]', cls: 'asm' },
+      { text: 'add eax, [ebp-8]', cls: 'asm' },
       { text: '', cls: '' },
       { text: '; — Epilogue —', cls: 'label' },
       { text: 'leave             ; restore frame', cls: 'asm' },
       { text: 'hlt', cls: 'asm' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmInstructions: instructions,
-  check: () => true,
+  asmQuiz: [
+    { question: 'What is EAX at the end (x + y)?', answer: 30, format: 'decimal', hint: 'x = 10 at [ebp-4], y = 20 at [ebp-8]. 10 + 20 = 30.' },
+    { question: 'How many bytes does "sub esp, 16" allocate for locals?', answer: 16, format: 'decimal', hint: 'The prologue reserves stack space by subtracting from ESP.' },
+  ],
+  check: () => false,
   winTitle: 'Stack Frames Mastered!',
   winMsg: 'You understand prologue/epilogue — the structure that buffer overflows target.',
 };

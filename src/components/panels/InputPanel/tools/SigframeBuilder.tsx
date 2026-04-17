@@ -69,8 +69,8 @@ export default function SigframeBuilder() {
           </div>
         ))}
       </div>
-      <div style={{ marginTop: '0.25rem' }}>
-        <button className="btn" onClick={() => {
+      <div className="controls" style={{ marginTop: '0.25rem' }}>
+        <button onClick={() => {
           const payload = buildPayload();
           navigator.clipboard?.writeText(payload);
         }}>

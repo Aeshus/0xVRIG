@@ -2,15 +2,15 @@ import { Exercise } from '../types';
 import { AsmInstruction } from '@/engine/x86/types';
 
 const instructions: AsmInstruction[] = [
-  { addr: 0x00400000, bytes: [0x55], mnemonic: 'push', operands: 'rbp', comment: 'Save old frame pointer (8 bytes on x64!)' },
-  { addr: 0x00400001, bytes: [0x48, 0x89, 0xe5], mnemonic: 'mov', operands: 'rbp, rsp', comment: 'Set up frame pointer' },
-  { addr: 0x00400004, bytes: [0x48, 0x83, 0xec, 0x20], mnemonic: 'sub', operands: 'rsp, 32', comment: 'Allocate 32 bytes for locals' },
-  { addr: 0x00400008, bytes: [0x48, 0xc7, 0x45, 0xf8, 0x41, 0x41, 0x41, 0x41], mnemonic: 'mov', operands: 'qword [rbp-8], 0x41414141', comment: 'Local var at [rbp-8]' },
-  { addr: 0x00400010, bytes: [0x48, 0xc7, 0x45, 0xf0, 0x42, 0x42, 0x42, 0x42], mnemonic: 'mov', operands: 'qword [rbp-16], 0x42424242', comment: 'Local var at [rbp-16]' },
-  { addr: 0x00400018, bytes: [0x48, 0x8b, 0x45, 0xf8], mnemonic: 'mov', operands: 'rax, [rbp-8]', comment: 'Load first local into RAX' },
-  { addr: 0x0040001c, bytes: [0x48, 0x03, 0x45, 0xf0], mnemonic: 'add', operands: 'rax, [rbp-16]', comment: 'RAX += second local' },
-  { addr: 0x00400020, bytes: [0xc9], mnemonic: 'leave', operands: '', comment: 'Restore RSP and RBP' },
-  { addr: 0x00400021, bytes: [0xf4], mnemonic: 'hlt', operands: '', comment: '8-byte words, 8-byte pointers!' },
+  { addr: 0x00400000, bytes: [0x55], mnemonic: 'push', operands: 'rbp', comment: 'Prologue — how many bytes does PUSH move here?' },
+  { addr: 0x00400001, bytes: [0x48, 0x89, 0xe5], mnemonic: 'mov', operands: 'rbp, rsp', comment: 'Frame pointer setup' },
+  { addr: 0x00400004, bytes: [0x48, 0x83, 0xec, 0x20], mnemonic: 'sub', operands: 'rsp, 32', comment: 'Allocate local space' },
+  { addr: 0x00400008, bytes: [0x48, 0xc7, 0x45, 0xf8, 0x41, 0x41, 0x41, 0x41], mnemonic: 'mov', operands: 'qword [rbp-8], 0x41414141', comment: 'Local variable' },
+  { addr: 0x00400010, bytes: [0x48, 0xc7, 0x45, 0xf0, 0x42, 0x42, 0x42, 0x42], mnemonic: 'mov', operands: 'qword [rbp-16], 0x42424242', comment: 'Local variable' },
+  { addr: 0x00400018, bytes: [0x48, 0x8b, 0x45, 0xf8], mnemonic: 'mov', operands: 'rax, [rbp-8]', comment: 'Load first local' },
+  { addr: 0x0040001c, bytes: [0x48, 0x03, 0x45, 0xf0], mnemonic: 'add', operands: 'rax, [rbp-16]', comment: 'Add second local' },
+  { addr: 0x00400020, bytes: [0xc9], mnemonic: 'leave', operands: '', comment: 'Epilogue' },
+  { addr: 0x00400021, bytes: [0xf4], mnemonic: 'hlt', operands: '', comment: '' },
 ];
 
 export const x6429: Exercise = {
@@ -38,11 +38,15 @@ export const x6429: Exercise = {
       { text: 'hlt', cls: 'asm' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
-  check: () => true,
+  asmQuiz: [
+    { question: 'How many bytes does PUSH move on x64?', answer: 8, format: 'decimal', hint: 'x64 uses 8-byte (64-bit) pushes, not 4-byte like x86.' },
+    { question: 'What is RAX after adding [rbp-8] and [rbp-16]? (0x41414141 + 0x42424242)', answer: 0x83838383, format: 'hex', hint: 'Just add the two values.' },
+  ],
+  check: () => false,
   winTitle: 'x64 Stack!',
   winMsg: 'You understand 64-bit stack frames with 8-byte words.',
 };

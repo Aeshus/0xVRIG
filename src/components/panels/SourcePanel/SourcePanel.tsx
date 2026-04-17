@@ -44,6 +44,7 @@ export default function SourcePanel() {
                 if (c) classes.push(c);
               }
             }
+            if (i === state.execLine) classes.push('executing');
             const html = line.text ? highlightSyntax(line.text) : '\u00A0';
             return (
               <span key={i} className={classes.join(' ')}>

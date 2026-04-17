@@ -48,11 +48,15 @@ export const x6431: Exercise = {
       { text: 'hlt', cls: 'asm' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
-  check: () => true,
+  asmQuiz: [
+    { question: 'What gadget do you need for x64 ROP to set the 1st argument?', answer: 1, format: 'decimal', hint: '1=pop rdi; ret, 2=pop rsi; ret. RDI holds arg1 on x64.' },
+    { question: 'What address is the "pop rdi; ret" gadget in this exercise?', answer: 0x00401337, format: 'hex', hint: 'Look at the gadget1 address in the comments.' },
+  ],
+  check: () => false,
   winTitle: 'x64 ROP Chain!',
   winMsg: 'You can construct ROP chains using pop rdi; ret gadgets on x64.',
 };

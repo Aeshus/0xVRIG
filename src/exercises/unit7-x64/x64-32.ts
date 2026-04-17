@@ -47,7 +47,7 @@ export const x6432: Exercise = {
       { text: '  call [r12+rbx*8]', cls: 'asm' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
@@ -65,7 +65,11 @@ export const x6432: Exercise = {
     // Function table at 0x601000
     { addr: 0x00601000, value: 0x00400500, size: 8 }, // target function addr
   ],
-  check: () => true,
+  asmQuiz: [
+    { question: 'How many registers does gadget2 pop?', answer: 6, format: 'decimal', hint: 'pop rbx, rbp, r12, r13, r14, r15 — six total.' },
+    { question: 'Which register holds the 3rd argument (RDX) value before gadget1 moves it?', answer: 13, format: 'decimal', hint: 'R13 → RDX. Enter the register number (13 for R13).' },
+  ],
+  check: () => false,
   winTitle: 'ret2csu Expert!',
   winMsg: 'You understand the universal __libc_csu_init gadgets for x64 ROP.',
 };

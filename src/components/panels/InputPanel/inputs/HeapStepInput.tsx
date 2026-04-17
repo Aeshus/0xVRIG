@@ -41,6 +41,7 @@ export default function HeapStepInput() {
     if (state.heapStep >= steps.length) return;
 
     const step = steps[state.heapStep];
+    if (step.srcLine !== undefined) dispatch({ type: 'SET_EXEC_LINE', line: step.srcLine });
     const result = executeHeapGuidedStep(step, heap, state.heapNames);
     for (const log of result.logs) dispatch({ type: 'LOG', cls: log.cls, msg: log.msg });
     if (result.heapNames) {
@@ -108,14 +109,16 @@ export default function HeapStepInput() {
     }
   }, [ex, heap, payload, state.heapNames, state.symbols, dispatch]);
 
-  const isInputPhase = phase === 'input' || phase === 'overwrite-top' || phase === 'fake-headers' || phase === 'free-fake' || phase === 'final-write' || phase === 'null-byte' || phase === 'corrupt-top' || phase === 'bk-write';
+  const steps = getStepsForMode(ex?.mode ?? '');
+  const hasSteps = steps.length > 0;
+  const isInputPhase = !hasSteps || phase === 'input' || phase === 'overwrite-top' || phase === 'fake-headers' || phase === 'free-fake' || phase === 'final-write' || phase === 'null-byte' || phase === 'corrupt-top' || phase === 'bk-write';
 
   if (!isInputPhase) {
     return (
       <div>
-        <button className="btn" onClick={doStep}>Step</button>
+        <div className="controls"><button className="primary" onClick={doStep}>Step</button></div>
         <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '0.25rem' }}>
-          Step {state.heapStep + 1}/{getStepsForMode(ex?.mode ?? '').length}
+          Step {state.heapStep + 1}/{steps.length}
         </div>
       </div>
     );
@@ -144,7 +147,7 @@ export default function HeapStepInput() {
           }}
         />
       </div>
-      <button className="btn" onClick={doSubmit}>Submit</button>
+      <div className="controls"><button className="primary" onClick={doSubmit}>Submit</button></div>
     </div>
   );
 }

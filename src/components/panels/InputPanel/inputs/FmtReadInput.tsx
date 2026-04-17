@@ -53,7 +53,7 @@ export default function FmtReadInput() {
           }}
         />
       </div>
-      <button className="btn" onClick={doRun}>Run printf()</button>
+      <div className="controls"><button className="primary" onClick={doRun}>Run printf()</button></div>
     </div>
   );
 }

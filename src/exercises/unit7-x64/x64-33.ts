@@ -40,11 +40,15 @@ export const x6433: Exercise = {
       { text: '; overwrite ret with rax → shell!', cls: 'asm' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
-  check: () => true,
+  asmQuiz: [
+    { question: 'What is the one_gadget offset used in this exercise?', answer: 0x4526a, format: 'hex', hint: 'Look at the offset loaded before adding to libc base.' },
+    { question: 'If libc_base is 0x7ffff7a00000, what is the full one_gadget address?', answer: 0x7ffff7a4526a, format: 'hex', hint: 'libc_base + 0x4526a.' },
+  ],
+  check: () => false,
   winTitle: 'One-Gadget!',
   winMsg: 'You understand one-gadget shortcuts for instant shell in libc.',
 };

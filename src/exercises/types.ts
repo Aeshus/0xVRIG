@@ -21,6 +21,7 @@ export type ExerciseMode =
   | 'final-blind'
   | 'asm-step'
   | 'asm-registers'
+  | 'asm-quiz'
   | 'windows-seh'
   | 'windows-heap'
   | 'sandbox-stack'
@@ -95,6 +96,7 @@ export interface Exercise {
   asmInitialRegs?: Partial<Record<import('@/engine/x86/types').X86Register, number>>;
   asmStackBase?: number;
   asmInitialMemory?: Array<{ addr: number; value: number; size: number }>;
+  asmQuiz?: AsmQuizQuestion[];
   sehChainSize?: number;
   safeSEH?: boolean;
   sehop?: boolean;
@@ -108,6 +110,13 @@ export interface Exercise {
   check: (sim: any, heap: any, symbols: Record<string, number>, flags: Record<string, boolean>) => boolean;
   winTitle: string;
   winMsg: string;
+}
+
+export interface AsmQuizQuestion {
+  question: string;
+  hint?: string;
+  answer: number;
+  format?: 'hex' | 'decimal';
 }
 
 export interface Unit {

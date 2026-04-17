@@ -39,11 +39,15 @@ export const x6435: Exercise = {
       { text: '// but last 12 bits (page offset) are fixed', cls: 'comment' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
-  check: () => true,
+  asmQuiz: [
+    { question: 'How many bits of the address are fixed (page offset) regardless of ASLR/PIE?', answer: 12, format: 'decimal', hint: 'Pages are 4KB = 2^12, so the last 12 bits are always the same.' },
+    { question: 'If win() is at offset 0x830 in the binary, what 2 bytes would you overwrite the return address with?', answer: 0x0830, format: 'hex', hint: 'Just the offset within the page.' },
+  ],
+  check: () => false,
   winTitle: 'PIE Bypassed!',
   winMsg: 'You understand PIE bypass via partial overwrites and base calculation.',
 };

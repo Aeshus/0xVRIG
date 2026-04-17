@@ -100,7 +100,7 @@ export default function FinalBlindInput() {
             resize: 'vertical',
           }}
         />
-        <button className="btn" onClick={doUafWrite} style={{ marginTop: '0.5rem' }}>Submit Phase 1</button>
+        <div className="controls" style={{ marginTop: '0.5rem' }}><button className="primary" onClick={doUafWrite}>Submit Phase 1</button></div>
       </div>
     );
   }
@@ -126,7 +126,7 @@ export default function FinalBlindInput() {
           resize: 'vertical',
         }}
       />
-      <button className="btn" onClick={doFinalWrite} style={{ marginTop: '0.5rem' }}>Submit Phase 2</button>
+      <div className="controls" style={{ marginTop: '0.5rem' }}><button className="primary" onClick={doFinalWrite}>Submit Phase 2</button></div>
     </div>
   );
 }

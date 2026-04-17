@@ -75,7 +75,7 @@ main {
   white-space: pre; line-height: 1.6; tab-size: 4;
 }
 .src-line { display: block; padding: 0 0.5rem; position: relative; }
-.src-line .ln { color: var(--text-dim); display: inline-block; width: 2.5em; text-align: right; margin-right: 1em; user-select: none; }
+.src-line .ln { color: var(--text-dim); display: inline-block; width: 2.5em; text-align: right; margin-right: 1em; user-select: none; position: relative; }
 .src-line.highlight { background: rgba(78, 201, 176, 0.1); border-left: 2px solid var(--green); }
 .src-line.executing { background: rgba(220, 220, 170, 0.12); border-left: 2px solid var(--yellow); }
 .src-line.executing .ln::before { content: '\25B6'; color: var(--yellow); position: absolute; left: 0.15rem; font-size: 10px; }

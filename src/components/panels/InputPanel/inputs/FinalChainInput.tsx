@@ -105,7 +105,7 @@ export default function FinalChainInput() {
             fontSize: '12px',
           }}
         />
-        <button className="btn" onClick={doCount} style={{ marginTop: '0.5rem' }}>Submit Count</button>
+        <div className="controls" style={{ marginTop: '0.5rem' }}><button className="primary" onClick={doCount}>Submit Count</button></div>
       </div>
     );
   }
@@ -133,7 +133,7 @@ export default function FinalChainInput() {
           }}
         />
       </div>
-      <button className="btn" onClick={doSubmit}>Submit Payload</button>
+      <div className="controls"><button className="primary" onClick={doSubmit}>Submit Payload</button></div>
     </div>
   );
 }

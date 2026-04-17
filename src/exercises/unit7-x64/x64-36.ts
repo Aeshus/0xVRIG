@@ -44,11 +44,15 @@ export const x6436: Exercise = {
       { text: '// vulnerability that allows both', cls: 'comment' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
-  check: () => true,
+  asmQuiz: [
+    { question: 'How many leak stages are needed in this full chain?', answer: 2, format: 'decimal', hint: 'Stage 1: leak PIE address. Stage 2: leak libc address via GOT.' },
+    { question: 'What structure contains resolved libc addresses that can be leaked?', answer: 1, format: 'decimal', hint: '1=GOT (Global Offset Table), 2=PLT, 3=BSS. The GOT holds resolved addresses.' },
+  ],
+  check: () => false,
   winTitle: 'Full Chain Complete!',
   winMsg: 'You understand the full modern x64 exploit chain: PIE leak → libc leak → one-gadget.',
 };

@@ -1,4 +1,4 @@
-const STORAGE_KEY = 'memcorr-progress';
+const STORAGE_KEY = 'memcorr-progress-v2';
 
 export function saveProgress(completed: Set<string>): void {
   try {

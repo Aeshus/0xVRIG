@@ -52,6 +52,7 @@ export default function StepControls() {
       dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
     }
 
+    if (step.srcLine !== undefined) dispatch({ type: 'SET_EXEC_LINE', line: step.srcLine });
     dispatch({ type: 'INCREMENT_STEP' });
     dispatch({ type: 'BUMP_VIZ' });
 
@@ -75,6 +76,7 @@ export default function StepControls() {
     stackSim.current = newSim;
 
     dispatch({ type: 'SET_STEP_INDEX', index: 0 });
+    dispatch({ type: 'SET_EXEC_LINE', line: -1 });
     dispatch({ type: 'CLEAR_LOG' });
     dispatch({ type: 'BUMP_VIZ' });
   }

@@ -41,6 +41,7 @@ export default function TextHexInput() {
       // Execute first step
       if (steps.length > 0) {
         const result = execCurrentStep(steps[0], sim, ex, state.symbols, ropState);
+        if (result.highlightLine !== undefined) dispatch({ type: 'SET_EXEC_LINE', line: result.highlightLine });
         for (const log of result.logs) dispatch({ type: 'LOG', cls: log.cls, msg: log.msg });
         if (result.registerUpdates) dispatch({ type: 'SET_REGISTERS', registers: result.registerUpdates });
         if (result.flagUpdates) {
@@ -68,6 +69,7 @@ export default function TextHexInput() {
 
     const step = execSteps[execIndex];
     const result = execCurrentStep(step, sim, ex, state.symbols, ropState);
+    if (result.highlightLine !== undefined) dispatch({ type: 'SET_EXEC_LINE', line: result.highlightLine });
     for (const log of result.logs) dispatch({ type: 'LOG', cls: log.cls, msg: log.msg });
     if (result.registerUpdates) dispatch({ type: 'SET_REGISTERS', registers: result.registerUpdates });
     if (result.flagUpdates) {
@@ -110,6 +112,7 @@ export default function TextHexInput() {
     for (let i = idx; i < steps.length; i++) {
       const step = steps[i];
       const result = execCurrentStep(step, sim, ex, state.symbols, ropState);
+      if (result.highlightLine !== undefined) dispatch({ type: 'SET_EXEC_LINE', line: result.highlightLine });
       for (const log of result.logs) dispatch({ type: 'LOG', cls: log.cls, msg: log.msg });
       if (result.registerUpdates) dispatch({ type: 'SET_REGISTERS', registers: result.registerUpdates });
       if (result.flagUpdates) {
@@ -138,6 +141,7 @@ export default function TextHexInput() {
     setExecSteps(null);
     setExecIndex(0);
     dispatch({ type: 'CLEAR_LOG' });
+    dispatch({ type: 'SET_EXEC_LINE', line: -1 });
     dispatch({ type: 'BUMP_VIZ' });
     dispatch({ type: 'SET_RUNNING', running: false });
   }, [sim, dispatch]);
@@ -178,10 +182,10 @@ export default function TextHexInput() {
           }}
         />
       </div>
-      <div style={{ display: 'flex', gap: '0.5rem' }}>
-        <button className="btn" onClick={doStep} disabled={state.running}>Step</button>
-        <button className="btn" onClick={doRunAll} disabled={state.running}>Run</button>
-        <button className="btn" onClick={doReset}>Reset</button>
+      <div className="controls">
+        <button className="primary" onClick={doStep} disabled={state.running}>Step</button>
+        <button onClick={doRunAll} disabled={state.running}>Run</button>
+        <button onClick={doReset}>Reset</button>
       </div>
       {execSteps && (
         <div style={{ fontSize: '11px', color: 'var(--text-dim)', marginTop: '0.25rem' }}>

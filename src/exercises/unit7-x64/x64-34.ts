@@ -43,11 +43,15 @@ export const x6434: Exercise = {
       { text: '// (vs brute-forcing 8 bytes: 2^56 ≈ impossible)', cls: 'comment' },
     ],
   },
-  mode: 'asm-step',
+  mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
-  check: () => true,
+  asmQuiz: [
+    { question: 'What is byte 0 of an x64 stack canary always set to?', answer: 0, format: 'hex', hint: 'The null byte prevents string functions from reading past the canary.' },
+    { question: 'Maximum brute-force attempts to leak a full 8-byte canary (byte-by-byte)?', answer: 1792, format: 'decimal', hint: '7 unknown bytes × 256 guesses each = 1792.' },
+  ],
+  check: () => false,
   winTitle: 'Canary Cracked!',
   winMsg: 'You understand byte-by-byte canary brute force in forking servers.',
 };

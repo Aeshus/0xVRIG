@@ -18,6 +18,7 @@ export interface AppState {
   oboWin: boolean;
   ropWin: boolean;
   sropWin: boolean;
+  execLine: number;
   vizRenderKey: number;
   showSuccess: { title: string; msg: string } | null;
 }
@@ -40,6 +41,7 @@ export type Action =
   | { type: 'SET_REGISTERS'; registers: Record<string, number> }
   | { type: 'SET_FLAG'; flag: string; value: boolean }
   | { type: 'BUMP_VIZ' }
+  | { type: 'SET_EXEC_LINE'; line: number }
   | { type: 'SHOW_SUCCESS'; title: string; msg: string }
   | { type: 'DISMISS_SUCCESS' }
   | { type: 'RESET' };

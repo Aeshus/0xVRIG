@@ -23,6 +23,7 @@ export function createInitialState(): AppState {
     oboWin: false,
     ropWin: false,
     sropWin: false,
+    execLine: -1,
     vizRenderKey: 0,
     showSuccess: null,
   };
@@ -48,6 +49,7 @@ export function reducer(state: AppState, action: Action): AppState {
         oboWin: false,
         ropWin: false,
         sropWin: false,
+        execLine: -1,
         vizRenderKey: state.vizRenderKey + 1,
         showSuccess: null,
       };
@@ -122,6 +124,9 @@ export function reducer(state: AppState, action: Action): AppState {
       }
       return state;
     }
+
+    case 'SET_EXEC_LINE':
+      return { ...state, execLine: action.line };
 
     case 'BUMP_VIZ':
       return { ...state, vizRenderKey: state.vizRenderKey + 1 };

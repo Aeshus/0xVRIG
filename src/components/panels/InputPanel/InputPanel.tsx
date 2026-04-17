@@ -11,6 +11,7 @@ import HeapStepInput from './inputs/HeapStepInput';
 import FinalChainInput from './inputs/FinalChainInput';
 import FinalBlindInput from './inputs/FinalBlindInput';
 import AsmStepInput from './inputs/AsmStepInput';
+import AsmQuizInput from './inputs/AsmQuizInput';
 import SymbolTable from './tools/SymbolTable';
 import HexCalculator from './tools/HexCalculator';
 import PayloadBuilder from './tools/PayloadBuilder';
@@ -67,6 +68,11 @@ export default function InputPanel() {
       case 'asm-step':
       case 'asm-registers':
         content = <AsmStepInput emulator={asmEmulator.current} />;
+        break;
+      case 'asm-quiz':
+        content = ex.asmQuiz
+          ? <AsmQuizInput emulator={asmEmulator.current} questions={ex.asmQuiz} />
+          : <AsmStepInput emulator={asmEmulator.current} />;
         break;
       default:
         content = <div style={{ color: 'var(--text-dim)' }}>Input mode &ldquo;{ex.mode}&rdquo; coming soon.</div>;

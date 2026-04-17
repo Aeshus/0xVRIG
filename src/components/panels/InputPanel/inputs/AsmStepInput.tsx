@@ -81,14 +81,14 @@ export default function AsmStepInput({ emulator, onStepResult }: AsmStepInputPro
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-      <div style={{ display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
-        <button className="btn" onClick={doStep} disabled={halted}>
+      <div className="controls">
+        <button className="primary" onClick={doStep} disabled={halted}>
           Step
         </button>
-        <button className="btn" onClick={doRun} disabled={halted}>
+        <button onClick={doRun} disabled={halted}>
           Run All
         </button>
-        <button className="btn btn-danger" onClick={doReset}>
+        <button onClick={doReset}>
           Reset
         </button>
       </div>
