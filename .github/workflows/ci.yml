@@ -79,7 +79,7 @@ jobs:
           fi
       - name: Count exercises
         run: |
-          COUNT=$(find out/exercise -mindepth 1 -maxdepth 1 -type d | wc -l)
+          COUNT=$(find out/exercise -mindepth 1 -maxdepth 1 -name '*.html' | wc -l)
           echo "Exercise pages: $COUNT"
           if [ "$COUNT" -lt 100 ]; then
             echo "::error::Expected 100+ exercise pages, got $COUNT"

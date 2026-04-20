@@ -73,29 +73,25 @@ export default function ExercisePageClient({ params }: { params: Promise<{ id: s
 
     // Initialize StackSim
     if (needsStack || exercise.mode.startsWith('input-')) {
+      let extraSize = 0;
+      if (exercise.ret2libc) extraSize = 8;
+      else if (exercise.rop) extraSize = 40;
+      else if (exercise.srop) extraSize = 28;
+      else if (exercise.pivot) extraSize = 40;
+
       const sim = new StackSim({
         bufSize: exercise.bufSize ?? 16,
         retAddr: retAddrInMain(symbols),
         savedEbp: 0xbfff0200,
         useCanary: exercise.canary,
+        extraSize,
       });
 
       if (exercise.mode === 'step') {
         sim.clearBlank();
       }
 
-      if (exercise.srop || exercise.ret2libc) {
-        const bigSim = new StackSim(
-          exercise.bufSize ?? 16,
-          retAddrInMain(symbols),
-          0xbfff0200,
-          undefined,
-          exercise.canary,
-        );
-        stackSim.current = bigSim;
-      } else {
-        stackSim.current = sim;
-      }
+      stackSim.current = sim;
     } else {
       stackSim.current = null;
     }
@@ -119,6 +115,7 @@ export default function ExercisePageClient({ params }: { params: Promise<{ id: s
       } else if (exercise.mode === 'heap-double-free') {
         const aResult = heap.malloc(16);
         if (aResult) {
+          heap.funcPtrs['handler'] = { original: symbols.normal, current: symbols.normal } as any;
           setTimeout(() => {
             dispatch({ type: 'SET_HEAP_NAME', name: 'A', addr: aResult.addr });
             dispatch({ type: 'BUMP_VIZ' });

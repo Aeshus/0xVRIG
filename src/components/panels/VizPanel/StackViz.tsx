@@ -86,6 +86,9 @@ export default function StackViz() {
       labelHtml = `\u2190 <span style="color:var(--green)">buf[0]</span> (write starts here)`;
     } else if (offset < sim.bufSize) {
       labelHtml = `<span style="color:var(--text-dim)">buf[${offset}..${Math.min(offset + 3, sim.bufSize - 1)}]</span>`;
+    } else if (offset > retStart + 3) {
+      const extraOff = offset - (retStart + sim.retSize);
+      labelHtml = `<span style="color:var(--text-dim)">payload[+${extraOff}]</span>`;
     }
 
     rows.push(

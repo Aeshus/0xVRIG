@@ -97,9 +97,10 @@ export default function HeapViz() {
           <div style={{ color: 'var(--text-dim)', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.25rem', fontSize: '10px' }}>
             {isWindows ? 'NT Heap Free Lists' : 'Free Lists'}
           </div>
-          <FreeListChain label={tcacheLabel} color="var(--purple)" bins={freeLists.tcache} baseAddr={heap.baseAddr} />
-          <FreeListChain label={fastbinLabel} color="var(--blue)" bins={freeLists.fastbins} baseAddr={heap.baseAddr} />
-          <UnsortedChain addrs={freeLists.unsorted} baseAddr={heap.baseAddr} label={unsortedLabel} />
+          {freeLists.tcache && <FreeListChain label={tcacheLabel} color="var(--purple)" bins={freeLists.tcache} baseAddr={heap.baseAddr} />}
+          {freeLists.fastbins && <FreeListChain label={fastbinLabel} color="var(--blue)" bins={freeLists.fastbins} baseAddr={heap.baseAddr} />}
+          {freeLists.unsorted && <UnsortedChain addrs={freeLists.unsorted} baseAddr={heap.baseAddr} label={unsortedLabel} />}
+          {freeLists.listHints && <FreeListChain label="ListHints" color="var(--cyan)" bins={freeLists.listHints} baseAddr={heap.baseAddr} />}
         </div>
       )}
 

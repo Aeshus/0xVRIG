@@ -42,38 +42,41 @@ const exercise: Exercise = {
     },
     {
       log: ['action', 'Allocating A (128), B (128), C (128), and a guard chunk.'],
-      vizAction: (sim: any) => {
-        const a = sim.malloc(128);
-        const b = sim.malloc(128);
-        const c = sim.malloc(128);
-        const guard = sim.malloc(16);
-        sim._nameMap = {};
-        if (a) sim._nameMap.A = a.addr;
-        if (b) sim._nameMap.B = b.addr;
-        if (c) sim._nameMap.C = c.addr;
-        if (guard) sim._nameMap.guard = guard.addr;
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const a = heap.malloc(128);
+        const b = heap.malloc(128);
+        const c = heap.malloc(128);
+        const guard = heap.malloc(16);
+        heap._nameMap = {};
+        if (a) heap._nameMap.A = a.addr;
+        if (b) heap._nameMap.B = b.addr;
+        if (c) heap._nameMap.C = c.addr;
+        if (guard) heap._nameMap.guard = guard.addr;
       },
       srcLine: 5,
     },
     {
       log: ['action', 'free(A) — A is freed and placed in unsorted bin (too large for tcache on 2.23). A\'s PREV_INUSE is cleared on B\'s header.'],
-      vizAction: (sim: any) => {
-        const addr = sim._nameMap?.A;
-        if (addr !== undefined) sim.free(addr);
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const addr = heap._nameMap?.A;
+        if (addr !== undefined) heap.free(addr);
       },
       srcLine: 10,
     },
     {
       log: ['info', 'Now we simulate an overflow from B into C\'s header. We forge C\'s <code>prev_size</code> to point all the way back to A, and clear C\'s PREV_INUSE bit. This tricks free(C) into thinking A+B+C is one contiguous free region.'],
-      vizAction: (sim: any) => {
-        const aAddr = sim._nameMap?.A;
-        const cAddr = sim._nameMap?.C;
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const aAddr = heap._nameMap?.A;
+        const cAddr = heap._nameMap?.C;
         if (aAddr !== undefined && cAddr !== undefined) {
           const fakePrevSize = cAddr - aAddr;
-          sim._writeLE(cAddr, fakePrevSize, 4);
-          const sizeField = sim._readLE(cAddr + 4, 4);
-          sim._writeLE(cAddr + 4, sizeField & ~1, 4);
-          const chunk = sim.chunks.get(cAddr);
+          heap._writeLE(cAddr, fakePrevSize, 4);
+          const sizeField = heap._readLE(cAddr + 4, 4);
+          heap._writeLE(cAddr + 4, sizeField & ~1, 4);
+          const chunk = heap.chunks.get(cAddr);
           if (chunk) chunk.prevInUse = false;
         }
       },

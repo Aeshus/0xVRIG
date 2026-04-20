@@ -42,21 +42,23 @@ const exercise: Exercise = {
     },
     {
       log: ['action', 'Allocating A (16 bytes) and B (16 bytes).'],
-      vizAction: (sim: any) => {
-        const a = sim.malloc(16);
-        const b = sim.malloc(16);
-        if (a) sim._nameMap = { A: a.addr };
-        if (b) sim._nameMap = { ...sim._nameMap, B: b.addr };
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const a = heap.malloc(16);
+        const b = heap.malloc(16);
+        if (a) heap._nameMap = { A: a.addr };
+        if (b) heap._nameMap = { ...heap._nameMap, B: b.addr };
       },
       srcLine: 5,
     },
     {
       log: ['action', 'free(a), then free(b). B\'s fd now points to A, but <strong>mangled</strong>: fd = ((B.data >> 12) ^ A.data).'],
-      vizAction: (sim: any) => {
-        const aAddr = sim._nameMap?.A;
-        const bAddr = sim._nameMap?.B;
-        if (aAddr !== undefined) sim.free(aAddr);
-        if (bAddr !== undefined) sim.free(bAddr);
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const aAddr = heap._nameMap?.A;
+        const bAddr = heap._nameMap?.B;
+        if (aAddr !== undefined) heap.free(aAddr);
+        if (bAddr !== undefined) heap.free(bAddr);
       },
       srcLine: 8,
     },

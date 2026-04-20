@@ -153,6 +153,7 @@ main {
 .src-fn { color: var(--yellow); }
 .src-str { color: var(--amber); }
 .src-cmt { color: var(--comment); font-style: italic; }
+.src-num { color: var(--purple); }
 .src-vuln { color: var(--red); text-decoration: underline wavy var(--red); }
 
 /* Stack panel */

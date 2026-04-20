@@ -41,7 +41,7 @@ export const win45: Exercise = {
   showSymbols: true,
   showCalc: true,
   check(_, heap, symbols) {
-    return heap?.funcPtrs?.action?.current === symbols.win;
+    return heap?.funcPtrs?.handler?.current === symbols.win;
   },
   winTitle: 'Double Free!',
   winMsg: 'Double-free corrupts the free list, letting you get the same chunk allocated twice for a write-what-where primitive.',

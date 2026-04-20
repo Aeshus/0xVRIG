@@ -51,7 +51,7 @@ jobs:
       - name: Verify output
         run: |
           echo "Build size: $(du -sh out/ | cut -f1)"
-          COUNT=$(find out/exercise -mindepth 1 -maxdepth 1 -type d | wc -l)
+          COUNT=$(find out/exercise -mindepth 1 -maxdepth 1 -name '*.html' | wc -l)
           echo "Exercises: $COUNT"
 
       - uses: actions/upload-pages-artifact@v3

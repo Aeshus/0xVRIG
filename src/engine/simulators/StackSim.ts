@@ -5,6 +5,7 @@ export interface StackSimConfig {
   baseAddr?: number;
   useCanary?: boolean;
   wordSize?: 4 | 8;
+  extraSize?: number;
 }
 
 export class StackSim {
@@ -27,7 +28,7 @@ export class StackSim {
   wordSize: 4 | 8;
 
   constructor(config: StackSimConfig);
-  constructor(bufSize: number, retAddr: number, savedEbp: number, baseAddr?: number, useCanary?: boolean, wordSize?: 4 | 8);
+  constructor(bufSize: number, retAddr: number, savedEbp: number, baseAddr?: number, useCanary?: boolean, wordSize?: 4 | 8, extraSize?: number);
   constructor(
     bufSizeOrConfig: number | StackSimConfig,
     retAddr?: number,
@@ -35,6 +36,7 @@ export class StackSim {
     baseAddr?: number,
     useCanary?: boolean,
     wordSize?: 4 | 8,
+    extraSize?: number,
   ) {
     let bufSize: number;
     if (typeof bufSizeOrConfig === 'object') {
@@ -44,6 +46,7 @@ export class StackSim {
       baseAddr = bufSizeOrConfig.baseAddr;
       useCanary = bufSizeOrConfig.useCanary;
       wordSize = bufSizeOrConfig.wordSize;
+      extraSize = bufSizeOrConfig.extraSize;
     } else {
       bufSize = bufSizeOrConfig;
     }
@@ -53,7 +56,7 @@ export class StackSim {
     this.canarySize = useCanary ? this.wordSize : 0;
     this.ebpSize = this.wordSize;
     this.retSize = this.wordSize;
-    this.totalSize = bufSize + this.canarySize + this.ebpSize + this.retSize;
+    this.totalSize = bufSize + this.canarySize + this.ebpSize + this.retSize + (extraSize ?? 0);
     this.baseAddr = baseAddr ?? 0xbfff0100;
     this.memory = new Uint8Array(this.totalSize);
     this.written = new Uint8Array(this.totalSize);

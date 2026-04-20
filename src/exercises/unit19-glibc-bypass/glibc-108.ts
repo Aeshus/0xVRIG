@@ -42,19 +42,21 @@ const exercise: Exercise = {
     },
     {
       log: ['action', 'Allocating chunk A (16 bytes) and chunk B (16 bytes).'],
-      vizAction: (sim: any) => {
-        const a = sim.malloc(16);
-        const b = sim.malloc(16);
-        if (a) sim._nameMap = { ...sim._nameMap, A: a.addr };
-        if (b) sim._nameMap = { ...sim._nameMap, B: b.addr };
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const a = heap.malloc(16);
+        const b = heap.malloc(16);
+        if (a) heap._nameMap = { ...heap._nameMap, A: a.addr };
+        if (b) heap._nameMap = { ...heap._nameMap, B: b.addr };
       },
       srcLine: 5,
     },
     {
       log: ['action', 'free(a) — A goes to tcache. The <strong>tcache key</strong> is written at A+0x10 (data+8).'],
-      vizAction: (sim: any) => {
-        const addr = sim._nameMap?.A;
-        if (addr !== undefined) sim.free(addr);
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const addr = heap._nameMap?.A;
+        if (addr !== undefined) heap.free(addr);
       },
       srcLine: 7,
     },
@@ -64,12 +66,13 @@ const exercise: Exercise = {
     },
     {
       log: ['info', 'But if we have a UAF write primitive, we can <strong>clear the key</strong> at data+8. Setting it to 0 makes glibc think this chunk was never freed into tcache.'],
-      vizAction: (sim: any) => {
-        const addr = sim._nameMap?.A;
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const addr = heap._nameMap?.A;
         if (addr !== undefined) {
-          const chunk = sim.chunks.get(addr);
+          const chunk = heap.chunks.get(addr);
           if (chunk) {
-            sim._writeLE(chunk.dataStart + 4, 0, 4);
+            heap._writeLE(chunk.dataStart + 4, 0, 4);
           }
         }
       },
@@ -77,12 +80,13 @@ const exercise: Exercise = {
     },
     {
       log: ['success', 'free(a) succeeds! Key was 0, so glibc doesn\'t detect the double-free. A is now in tcache <strong>twice</strong>. From here: malloc returns A → write fd → malloc again → malloc returns arbitrary address. Classic tcache poison, enabled by clearing the key.'],
-      vizAction: (sim: any) => {
-        const addr = sim._nameMap?.A;
+      vizAction: (_sim: any, heap: any) => {
+        if (!heap) return;
+        const addr = heap._nameMap?.A;
         if (addr !== undefined) {
-          const chunk = sim.chunks.get(addr);
+          const chunk = heap.chunks.get(addr);
           if (chunk) chunk.allocated = true;
-          sim.free(addr);
+          heap.free(addr);
         }
       },
       srcLine: 13,
