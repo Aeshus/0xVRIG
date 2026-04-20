@@ -76,6 +76,11 @@ const hint56: Exercise = {
       vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('P7', 'data'); },
     },
     {
+      action: 'malloc', size: 24, name: 'P8', srcLine: 7,
+      log: ['action', 'malloc(24) -- ninth chunk. Both P7 and P8 will go to fastbin when freed, since the tcache will be full.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('P8', 'data'); },
+    },
+    {
       action: 'free', name: 'P0', srcLine: 11,
       log: ['action', 'free(P0) -- tcache bin for size 32: count = 1/7. The chunk\'s data area stores an fd pointer to NULL (end of list). Tcache entries form a singly-linked LIFO list.'],
       vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('P0', 'freed'); heap.annotateField?.('P0', 'fd', 'tcache 1/7'); },
@@ -114,6 +119,11 @@ const hint56: Exercise = {
       action: 'free', name: 'P7', srcLine: 13,
       log: ['warn', 'free(P7) -- tcache bin is full (7/7)! This chunk falls through to the fast bin instead. The fast bin has different security checks (and fewer in older glibc). Many exploits deliberately fill the tcache to force chunks into the more exploitable fast bin path.'],
       vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('P7', 'freed'); heap.annotateField?.('P7', 'fd', 'FASTBIN (overflow)'); },
+    },
+    {
+      action: 'free', name: 'P8', srcLine: 14,
+      log: ['warn', 'free(P8) -- also goes to fast bin (tcache still full). Fastbin[32]: P8 \u2192 P7 \u2192 NULL. Both P7 and P8 bypassed tcache and went straight to the classic fast bin path.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('P8', 'freed'); heap.annotateField?.('P8', 'fd', 'FASTBIN #2'); },
     },
     {
       action: 'done',
