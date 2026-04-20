@@ -30,6 +30,7 @@ const exercise: Exercise = {
       { text: '//     __stack_chk_fail(); // abort!', cls: 'cmt' },
     ],
   },
+  protections: [{ name: 'Canary', status: 'active' }],
   mode: 'input-hex',
   vizMode: 'stack',
   bufSize: 16,

@@ -55,6 +55,7 @@ export interface GuidedStep {
   name?: string;
   size?: number;
   done?: boolean;
+  vizAction?: (sim: any, heap: any, aux?: any) => void;
 }
 
 export interface Exercise {
@@ -111,6 +112,8 @@ export interface Exercise {
   winTitle: string;
   winMsg: string;
   realWorld?: string;
+  protections?: Array<{ name: string; status: 'active' | 'bypassed' | 'disabled' }>;
+  auxViz?: ('got' | 'shadow-stack' | 'memory-map' | 'cfi-targets')[];
 }
 
 export interface AsmQuizQuestion {

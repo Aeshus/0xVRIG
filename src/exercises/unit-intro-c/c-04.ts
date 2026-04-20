@@ -28,25 +28,30 @@ const c04: Exercise = {
     {
       action: 'init',
       log: ['info', 'The "stack" is a region of memory that grows and shrinks as functions are called and return. Think of it like a stack of trays in a cafeteria -- you add trays on top, and remove them from the top. The stack grows downward in memory (toward lower addresses).'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearBlank(); },
     },
     {
       action: 'init',
       srcLine: 8,
       log: ['info', 'When main() calls greet(), the computer must remember where to come back to after greet() finishes. It saves a "return address" -- the address of the next instruction in main() -- by pushing it onto the stack.'],
+      vizAction: (sim: any) => { if (!sim) return; sim._writeLE(12, 0x08048456, 4); sim.markRegion(12, 16); },
     },
     {
       action: 'init',
       srcLine: 3,
       log: ['info', 'greet() then creates its own "stack frame" -- a section of the stack for its local variables. The variable int x = 5 is stored in this frame. The frame also includes a saved "base pointer" that bookmarks the previous frame.'],
+      vizAction: (sim: any) => { if (!sim) return; sim._writeLE(8, 0xBFFF0040, 4); sim._writeLE(0, 5, 4); sim.markRegion(0, 12); },
     },
     {
       action: 'init',
       log: ['info', 'The stack frame for greet() now looks like this (from top to bottom): local variable x, saved base pointer, then the return address pointing back to main(). The return address is the critical piece -- it controls where execution goes next.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.markRegion(0, 16); },
     },
     {
       action: 'init',
       srcLine: 5,
       log: ['info', 'When greet() hits its closing brace, it "returns." The computer restores the saved base pointer, then reads the return address from the stack and jumps back to that location in main(). The greet() frame is discarded.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearHighlight(); },
     },
     {
       action: 'done',

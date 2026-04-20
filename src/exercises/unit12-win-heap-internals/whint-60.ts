@@ -33,26 +33,32 @@ const exercise: Exercise = {
     {
       action: 'init',
       log: ['info', 'The LFH is the front-end allocator for the NT Heap. It groups allocation sizes into 128 buckets (size classes). Bucket selection: sizes 1-256 use 8-byte granularity (bucket = ceil(size/8)), sizes 257-16384 use wider granularity. The LFH is NOT active by default -- it activates per-bucket.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.clear?.(); },
     },
     {
       action: 'malloc', size: 32, name: 'A', srcLine: 8,
       log: ['action', 'HeapAlloc(h, 0, 32) -- first allocation of size 32. The back-end handles this (LFH not yet active). Internally, _HEAP.FrontEndHeapUsageData[] counts how many times each bucket is hit. This counter increments with each HeapAlloc call for this size class.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('A', 'data'); heap.annotateField?.('A', 'size', 'back-end alloc #1'); },
     },
     {
       action: 'init',
       log: ['info', 'After 17 consecutive allocations of size class 32, the counter crosses the activation threshold. The heap manager calls RtlpActivateLowFragmentationHeap() for bucket 4 (32/8). This creates an _LFH_HEAP structure and links it to this bucket.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.annotateField?.('A', 'size', 'LFH activating (17+)'); },
     },
     {
       action: 'malloc', size: 32, name: 'B', srcLine: 8,
       log: ['action', 'Allocation #18 (post-activation) -- now served by LFH. The LFH allocates a UserBlocks region: a contiguous memory block subdivided into fixed-size slots. Each slot is exactly (header + 32) bytes. The LFH picks a slot using a randomized bitmap scan, not FIFO.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('B', 'data'); heap.annotateField?.('B', 'size', 'LFH slot (randomized)'); },
     },
     {
       action: 'init',
       log: ['info', 'UserBlocks structure: _HEAP_USERDATA_HEADER at the start, followed by N fixed-size subsegment entries. A bitmap tracks which slots are busy/free. The LFH randomizes the starting position in the bitmap scan, so consecutive HeapAlloc calls do NOT return sequential addresses.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('B', 'header'); },
     },
     {
       action: 'init',
       log: ['warn', 'LFH randomization was added in Windows 8 to make heap spraying harder. Before Win8, LFH returned slots in a deterministic pattern. The randomization means an attacker spraying 1000 objects cannot predict which slot index will be adjacent to a target -- but statistical attacks still work with enough spray.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('A', 'data'); heap.highlightChunk?.('B', 'data'); },
     },
     {
       action: 'done',

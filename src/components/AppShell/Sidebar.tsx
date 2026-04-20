@@ -85,8 +85,10 @@ export default function Sidebar() {
   const { collapsed } = sidebarState;
 
   // Determine which exercise is active from the URL path
-  const activeExerciseId = pathname?.startsWith('/exercise/')
-    ? pathname.replace('/exercise/', '')
+  const exercisePrefix = '/exercise/';
+  const idx = pathname?.indexOf(exercisePrefix) ?? -1;
+  const activeExerciseId = idx >= 0
+    ? pathname!.slice(idx + exercisePrefix.length)
     : state.currentExerciseId;
 
   // Find which track/unit the active exercise belongs to, so we can auto-open them
@@ -176,8 +178,6 @@ export default function Sidebar() {
                             if (!ex) return null;
                             const isActive = activeExerciseId === exId;
                             const isCompleted = state.completed.has(exId);
-                            const numMatch = exId.match(/(\d+)$/);
-                            const num = numMatch ? numMatch[1].padStart(2, '0') : '??';
                             const displayTitle = ex.title.replace(/^\d+:\s*/, '');
 
                             return (
@@ -187,7 +187,6 @@ export default function Sidebar() {
                                 onClick={() => router.push(`/exercise/${exId}`)}
                                 title={ex.title}
                               >
-                                <span className="sidebar-exercise-num">{num}</span>
                                 <span className="sidebar-exercise-title">{displayTitle}</span>
                                 {isCompleted && (
                                   <span className="sidebar-exercise-check">{'\u2713'}</span>

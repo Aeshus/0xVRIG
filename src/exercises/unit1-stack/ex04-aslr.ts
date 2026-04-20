@@ -33,6 +33,7 @@ const ex04Aslr: Exercise = {
   showBuilder: true,
   showCalc: true,
   aslr: true,
+  protections: [{ name: 'ASLR', status: 'bypassed' }],
   check(sim, _heap, symbols) {
     return sim.getRetAddr() === symbols.win;
   },

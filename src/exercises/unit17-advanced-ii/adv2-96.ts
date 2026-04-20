@@ -38,30 +38,37 @@ const adv296: Exercise = {
     {
       action: 'init',
       log: ['info', 'The Windows kernel pool is the ring-0 equivalent of the userland heap. Memory is divided into pool pages, and each allocation gets an 8-byte POOL_HEADER. Unlike userland, there are no safe unlinking checks — corrupting headers is devastating.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.clear?.(); },
     },
     {
       action: 'malloc', size: 64, name: 'Event_0', srcLine: 12,
       log: ['action', 'Spray phase: allocate hundreds of Event objects (0x40 bytes each) in NonPagedPool. This fills pool pages with same-sized, adjacent objects, creating a predictable memory layout.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('Event_0', 'data'); heap.annotateField?.('Event_0', 'size', 'POOL_HDR|Event'); },
     },
     {
       action: 'malloc', size: 64, name: 'Event_1', srcLine: 12,
       log: ['action', 'Another Event object lands right next to Event_0. The pool allocator places same-sized objects contiguously within a pool page. After spraying ~1000 objects, the layout becomes deterministic.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('Event_1', 'data'); heap.annotateField?.('Event_1', 'size', 'POOL_HDR|Event'); },
     },
     {
       action: 'malloc', size: 64, name: 'Event_2', srcLine: 12,
       log: ['action', 'Pool page is filling up: [POOL_HDR|Event_0][POOL_HDR|Event_1][POOL_HDR|Event_2]... Each POOL_HEADER is 8 bytes, followed by the OBJECT_HEADER and object body.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('Event_2', 'data'); heap.annotateField?.('Event_2', 'size', 'POOL_HDR|Event'); },
     },
     {
       action: 'free', name: 'Event_1', srcLine: 16,
       log: ['action', 'Poke holes: free every other Event. This creates gaps of exactly the right size. The next allocation of that size will land in one of these holes, adjacent to a surviving Event object.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('Event_1', 'freed'); heap.annotateField?.('Event_1', 'fd', 'hole (free)'); },
     },
     {
       action: 'malloc', size: 64, name: 'vuln_buf', srcLine: 19,
       log: ['warn', 'The vulnerable driver allocation fills the hole left by Event_1. It now sits between Event_0 and Event_2. The driver writes user-controlled data into vuln_buf with insufficient bounds checking.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('vuln_buf', 'data'); heap.annotateField?.('vuln_buf', 'data', 'attacker-controlled'); },
     },
     {
       action: 'init',
       log: ['warn', 'OVERFLOW: The attacker sends a payload larger than the allocation. Data spills past vuln_buf into Event_2\'s POOL_HEADER and OBJECT_HEADER, corrupting its TypeIndex. The kernel now treats Event_2 as a different object type — one the attacker controls.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('Event_2', 'header'); heap.annotateField?.('Event_2', 'size', 'CORRUPTED TypeIndex!'); },
     },
     {
       action: 'done',
@@ -69,6 +76,12 @@ const adv296: Exercise = {
     },
   ],
   check() { return false; },
+  protections: [
+    { name: 'SMEP', status: 'disabled' },
+    { name: 'SMAP', status: 'disabled' },
+    { name: 'NonPagedPoolNx', status: 'disabled' },
+    { name: 'Pool cookies', status: 'disabled' },
+  ],
   winTitle: 'Kernel Pool Overflow!',
   winMsg: 'You traced a kernel pool spray-and-overflow attack: deterministic layout via spray, hole creation via selective frees, and OBJECT_HEADER corruption via overflow. This is the foundation of Windows local privilege escalation exploits.',
 };

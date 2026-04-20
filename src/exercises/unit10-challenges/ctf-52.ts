@@ -36,6 +36,12 @@ export const ctf52: Exercise = {
     const retAddr = sim.readWord(sim.retOffset);
     return retAddr === symbols.win;
   },
+  protections: [
+    { name: 'NX', status: 'disabled' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'SafeSEH', status: 'disabled' },
+    { name: 'SEHOP', status: 'disabled' },
+  ],
   winTitle: 'CTF Windows Solved!',
   winMsg: 'SEH overwrite exploitation — a Windows classic!',
 };

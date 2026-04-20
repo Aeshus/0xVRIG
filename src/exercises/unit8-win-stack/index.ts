@@ -7,5 +7,5 @@ import { win42 } from './win-42';
 import { Exercise } from '../types';
 
 export const unit8Exercises: Exercise[] = [
-  win37, win38, win39, win40, win41, win42,
+  win37, win38, win40, win39, win41, win42,
 ];

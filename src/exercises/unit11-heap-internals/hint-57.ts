@@ -37,22 +37,27 @@ const hint57: Exercise = {
     {
       action: 'init',
       log: ['info', 'ptmalloc2 uses arenas to handle multithreaded allocation. An arena is a complete allocator instance with its own bins, top chunk, and mutex. The main arena uses brk() to grow; thread arenas use mmap(). Let\'s see how they differ.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.clear?.(); },
     },
     {
       action: 'malloc', size: 32, name: 'M', srcLine: 13,
       log: ['action', 'malloc(32) in main thread -- served from the main arena. The chunk\'s size field has the A (NON_MAIN_ARENA) bit cleared (bit 2 = 0), indicating it belongs to the main arena. Main arena memory is contiguous, grown via brk().'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('M', 'data'); heap.annotateField?.('M', 'size', 'A=0 (main arena)'); },
     },
     {
       action: 'init', srcLine: 16,
       log: ['info', 'A new thread is created. When it calls malloc, ptmalloc2 calls arena_get() to find an arena. First it tries to reuse an unlocked existing arena. If all are locked, it creates a new one (up to 8 * number_of_cores). Each arena is independent -- its own mutex, its own bins, its own top chunk.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('M', 'header'); },
     },
     {
       action: 'init', srcLine: 6,
       log: ['info', 'The thread arena allocates memory via mmap() in 64 MB chunks called "heaps" (not to be confused with "the heap"). Each heap has a heap_info struct linking it to its arena. The A bit (bit 2) in chunk size fields will be SET for thread-arena chunks.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.annotateField?.('M', 'size', 'Thread: A=1'); },
     },
     {
       action: 'free', name: 'M', srcLine: 18,
       log: ['action', 'free(M) -- the allocator uses the A bit to determine which arena owns this chunk. A = 0 means main arena. For thread arenas (A = 1), the arena pointer is found via the heap_info struct at the base of the mmap\'d region.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('M', 'freed'); },
     },
     {
       action: 'done',

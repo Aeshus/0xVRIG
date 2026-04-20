@@ -2,13 +2,14 @@
 
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
-import { loadProgress } from '@/state/persistence';
+import { loadProgress, saveProgress } from '@/state/persistence';
 import { TRACKS, UNITS, getExercise, BADGES, getAllExercises } from '@/exercises/registry';
 
 export default function Dashboard() {
   const router = useRouter();
   const [completed, setCompleted] = useState<Set<string>>(new Set());
   const [mounted, setMounted] = useState(false);
+  const [adminInput, setAdminInput] = useState('');
 
   useEffect(() => {
     setCompleted(loadProgress());
@@ -183,6 +184,58 @@ export default function Dashboard() {
           </button>
         </div>
       )}
+
+      <div style={{
+        marginTop: '3rem',
+        paddingTop: '1rem',
+        borderTop: '1px solid var(--panel-border)',
+        display: 'flex',
+        alignItems: 'center',
+        gap: '0.5rem',
+      }}>
+        <input
+          type="password"
+          placeholder="Admin"
+          value={adminInput}
+          onChange={e => setAdminInput(e.target.value)}
+          onKeyDown={e => {
+            if (e.key === 'Enter' && adminInput === 'AdminVRIGPassword') {
+              const allIds = new Set(getAllExercises().map(ex => ex.id));
+              saveProgress(allIds);
+              setCompleted(allIds);
+              setAdminInput('');
+            }
+          }}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--panel-border)',
+            color: 'var(--text-dim)',
+            fontFamily: 'var(--font)',
+            fontSize: '10px',
+            padding: '0.25rem 0.5rem',
+            width: '100px',
+            outline: 'none',
+          }}
+        />
+        <button
+          onClick={() => {
+            const empty = new Set<string>();
+            saveProgress(empty);
+            setCompleted(empty);
+          }}
+          style={{
+            background: 'transparent',
+            border: '1px solid var(--panel-border)',
+            color: 'var(--text-dim)',
+            fontFamily: 'var(--font)',
+            fontSize: '10px',
+            padding: '0.25rem 0.5rem',
+            cursor: 'pointer',
+          }}
+        >
+          Reset Progress
+        </button>
+      </div>
     </div>
   );
 }

@@ -27,24 +27,29 @@ const c02: Exercise = {
       action: 'init',
       srcLine: 3,
       log: ['info', 'First we create an integer variable x with the value 10. It lives at some address in memory -- let\'s say address 0xBFFF0010. The 4 bytes at that address hold the value 10.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearBlank(); sim._writeLE(0, 10, 4); sim.markRegion(0, 4); },
     },
     {
       action: 'init',
       srcLine: 4,
       log: ['info', 'int *p = &x -- The & operator ("address-of") gives us the memory address where x lives. The variable p is a "pointer" -- it stores that address (0xBFFF0010). A pointer is just a number that happens to be an address.'],
+      vizAction: (sim: any) => { if (!sim) return; sim._writeLE(4, 0xBFFF0010, 4); sim.markRegion(4, 8); },
     },
     {
       action: 'init',
       log: ['info', 'A pointer itself takes up 4 bytes on a 32-bit system (or 8 bytes on 64-bit). It holds the address of another variable. Think of it as a slip of paper with a house number written on it.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.markRegion(0, 8); },
     },
     {
       action: 'init',
       srcLine: 6,
       log: ['info', '*p = 20 -- The * operator ("dereference") follows the address stored in p and modifies the value at that location. Since p points to x, this changes x from 10 to 20.'],
+      vizAction: (sim: any) => { if (!sim) return; sim._writeLE(0, 20, 4); sim.markRegion(0, 4); },
     },
     {
       action: 'init',
       log: ['warn', 'Here is the key insight: modifying *p and modifying x are the same operation. Both change the exact same bytes in memory. The pointer just gives us another way to reach them.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearHighlight(); },
     },
     {
       action: 'done',

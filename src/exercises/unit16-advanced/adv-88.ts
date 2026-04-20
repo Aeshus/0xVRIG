@@ -37,6 +37,12 @@ const adv88: Exercise = {
   },
   winTitle: 'FLAG{vtable_hijack}',
   winMsg: 'You hijacked a C++ virtual call by corrupting the vptr. In real-world exploits, attackers craft fake vtables in heap spray regions or known addresses. Chrome, Firefox, and IE have all been exploited through vtable hijacking in use-after-free scenarios.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+    { name: 'CFI', status: 'disabled' },
+  ],
   realWorld: 'CVE-2014-1776 (IE): A use-after-free allowed vtable hijacking in Internet Explorer\'s CMarkup object, exploited in the wild for targeted attacks.',
 };
 

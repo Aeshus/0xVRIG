@@ -7,6 +7,7 @@ import { saveProgress } from './persistence';
 import { StackSim } from '@/engine/simulators/StackSim';
 import { HeapSim } from '@/engine/simulators/HeapSim';
 import { Emulator } from '@/engine/emulator-interface';
+import { AuxViz } from '@/engine/simulators/AuxViz';
 import { Exercise } from '@/exercises/types';
 import { getExercise } from '@/exercises/registry';
 
@@ -16,6 +17,7 @@ interface ExerciseContextValue {
   stackSim: React.MutableRefObject<StackSim | null>;
   heapSim: React.MutableRefObject<HeapSim | null>;
   asmEmulator: React.MutableRefObject<Emulator | null>;
+  auxViz: React.MutableRefObject<AuxViz>;
   currentExercise: Exercise | null;
 }
 
@@ -26,6 +28,7 @@ export function ExerciseContextProvider({ children }: { children: React.ReactNod
   const stackSim = useRef<StackSim | null>(null);
   const heapSim = useRef<HeapSim | null>(null);
   const asmEmulator = useRef<Emulator | null>(null);
+  const auxViz = useRef<AuxViz>(new AuxViz());
 
   const currentExercise = state.currentExerciseId
     ? getExercise(state.currentExerciseId) ?? null
@@ -46,6 +49,7 @@ export function ExerciseContextProvider({ children }: { children: React.ReactNod
     stackSim,
     heapSim,
     asmEmulator,
+    auxViz,
     currentExercise,
   };
 

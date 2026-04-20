@@ -4,6 +4,18 @@ import { useExerciseContext } from '@/state/ExerciseContext';
 import StackViz from './StackViz';
 import HeapViz from './HeapViz';
 import AsmViz from './AsmViz';
+import ProtectionBadges from './ProtectionBadges';
+import GOTViz from './GOTViz';
+import ShadowStackViz from './ShadowStackViz';
+import MemoryMapViz from './MemoryMapViz';
+import CFIViz from './CFIViz';
+
+const AUX_COMPONENTS: Record<string, React.ComponentType> = {
+  'got': GOTViz,
+  'shadow-stack': ShadowStackViz,
+  'memory-map': MemoryMapViz,
+  'cfi-targets': CFIViz,
+};
 
 export default function VizPanel() {
   const { currentExercise, state, asmEmulator } = useExerciseContext();
@@ -57,7 +69,12 @@ export default function VizPanel() {
     <div className="panel" id="stack-panel">
       <div className="panel-hdr">{title}</div>
       <div className="panel-body">
+        <ProtectionBadges />
         {content}
+        {currentExercise?.auxViz?.map((key) => {
+          const Comp = AUX_COMPONENTS[key];
+          return Comp ? <Comp key={key} /> : null;
+        })}
       </div>
     </div>
   );

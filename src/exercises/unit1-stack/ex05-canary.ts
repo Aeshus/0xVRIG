@@ -33,6 +33,7 @@ const ex05Canary: Exercise = {
   showBuilder: true,
   aslr: false,
   canary: true,
+  protections: [{ name: 'Canary', status: 'bypassed' }],
   check(sim, _heap, symbols) {
     return sim.canaryIntact() && sim.getRetAddr() === symbols.win;
   },

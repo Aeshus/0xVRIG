@@ -47,6 +47,13 @@ const adv92: Exercise = {
   },
   winTitle: 'FLAG{ret2dlresolve}',
   winMsg: 'You forged the dynamic linker\'s resolution chain. By crafting fake JMPREL, SYMTAB, and STRTAB entries, you tricked _dl_runtime_resolve into resolving any function you want \u2014 without needing a libc leak. Ret2dlresolve is powerful because it works even with full ASLR: the .dynamic section addresses are fixed relative to the binary base in non-PIE executables.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'bypassed' },
+    { name: 'Canary', status: 'disabled' },
+    { name: 'PIE', status: 'disabled' },
+  ],
+  auxViz: ['got'],
   realWorld: 'Ret2dlresolve is a staple technique in CTF competitions and was notably used in real-world exploit chains against non-PIE Linux services where libc addresses were unknown.',
 };
 

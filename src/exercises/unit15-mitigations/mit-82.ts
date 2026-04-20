@@ -24,37 +24,138 @@ const exercise: Exercise = {
       { text: '//   (-Wl,-z,relro,-z,now)', cls: 'cmt' },
     ],
   },
+  protections: [{ name: 'Partial RELRO', status: 'active' }],
   mode: 'step',
   vizMode: 'stack',
+  auxViz: ['got'],
   bufSize: 32,
   steps: [
     {
       action: 'init',
       log: ['info', 'When a program calls puts(), execution goes through the PLT (Procedure Linkage Table). The PLT stub jumps to an address stored in the GOT (Global Offset Table). With lazy binding, the GOT initially points back to the resolver, which finds the real function address and patches the GOT.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearBlank();
+        sim.clearHighlight();
+        // Show initial GOT-like entries in the buffer: resolver stub addresses
+        sim._writeLE(0, 0x08048030, 4);  // GOT[puts] -> resolver
+        sim._writeLE(4, 0x08048040, 4);  // GOT[printf] -> resolver
+        sim._writeLE(8, 0x08048050, 4);  // GOT[gets] -> resolver
+        if (aux) {
+          aux.clearAll();
+          aux.setGOT([
+            { name: 'puts', addr: 0x0804c000, value: 0x08048030, resolved: false, overwritten: false },
+            { name: 'printf', addr: 0x0804c004, value: 0x08048040, resolved: false, overwritten: false },
+            { name: 'gets', addr: 0x0804c008, value: 0x08048050, resolved: false, overwritten: false },
+          ]);
+        }
+      },
     },
     {
       action: 'init', srcLine: 4,
       log: ['action', 'First call to puts(): PLT stub at .plt jumps to GOT entry. GOT contains address of resolver. Resolver looks up puts() in libc, writes the real address (e.g., 0xf7e5f150) into the GOT entry. Control transfers to puts(). Subsequent calls skip the resolver and go straight to libc.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        // Resolver patches GOT[puts] with real libc address
+        sim._writeLE(0, 0xf7e5f150, 4);
+        sim.writeWord(0, [0x50, 0xf1, 0xe5, 0xf7]);
+        sim.markRegion(0, 4);
+        if (aux) {
+          aux.setGOT([
+            { name: 'puts', addr: 0x0804c000, value: 0xf7e5f150, resolved: true, overwritten: false },
+            { name: 'printf', addr: 0x0804c004, value: 0x08048040, resolved: false, overwritten: false },
+            { name: 'gets', addr: 0x0804c008, value: 0x08048050, resolved: false, overwritten: false },
+          ]);
+        }
+      },
     },
     {
       action: 'init', srcLine: 7,
       log: ['action', 'Second call to puts(): PLT jumps to GOT, which now holds the real libc puts() address. No resolver needed. This is fast -- but the GOT entry is writable memory. An attacker with an arbitrary write primitive can overwrite it with the address of system() or a ROP gadget.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        // Show all three GOT entries now resolved
+        sim._writeLE(4, 0xf7e60200, 4);  // GOT[printf] resolved
+        sim._writeLE(8, 0xf7e5e890, 4);  // GOT[gets] resolved
+        sim.markRegion(0, 12);
+        if (aux) {
+          aux.setGOT([
+            { name: 'puts', addr: 0x0804c000, value: 0xf7e5f150, resolved: true, overwritten: false },
+            { name: 'printf', addr: 0x0804c004, value: 0xf7e60200, resolved: true, overwritten: false },
+            { name: 'gets', addr: 0x0804c008, value: 0xf7e5e890, resolved: true, overwritten: false },
+          ]);
+        }
+      },
     },
     {
       action: 'init',
       log: ['warn', 'GOT overwrite attack: the attacker writes system() address into the GOT entry for puts(). Next time the program calls puts("hello"), it actually calls system("hello"). If the attacker controls the argument (e.g., puts("/bin/sh")), they get a shell. This works with Partial RELRO.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        // Overwrite GOT[puts] with system() address
+        sim._writeLE(0, 0xf7e2c990, 4);  // system() address
+        sim.writeWord(0, [0x90, 0xc9, 0xe2, 0xf7]);
+        sim.markRegion(0, 4);
+        if (aux) {
+          aux.setGOT([
+            { name: 'puts', addr: 0x0804c000, value: 0xf7e2c990, resolved: true, overwritten: true },
+            { name: 'printf', addr: 0x0804c004, value: 0xf7e60200, resolved: true, overwritten: false },
+            { name: 'gets', addr: 0x0804c008, value: 0xf7e5e890, resolved: true, overwritten: false },
+          ]);
+        }
+      },
     },
     {
       action: 'init', srcLine: 13,
       log: ['info', 'Partial RELRO (-Wl,-z,relro): reorders ELF sections so .got is before .bss, and marks some sections read-only after loading. But .got.plt (the PLT\'s GOT) remains writable for lazy binding. GOT overwrites still work.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        // Partial RELRO: only mark the .got region (first few bytes) as protected, .got.plt remains open
+        sim.markRegion(12, 20);
+        if (aux) {
+          aux.setGOT([
+            { name: 'puts', addr: 0x0804c000, value: 0xf7e2c990, resolved: true, overwritten: true },
+            { name: 'printf', addr: 0x0804c004, value: 0xf7e60200, resolved: true, overwritten: false },
+            { name: 'gets', addr: 0x0804c008, value: 0xf7e5e890, resolved: true, overwritten: false },
+          ]);
+        }
+      },
     },
     {
       action: 'init', srcLine: 14,
       log: ['info', 'Full RELRO (-Wl,-z,relro,-z,now): forces all dynamic symbols to be resolved at load time (no lazy binding). After resolution, the entire GOT is remapped read-only with mprotect(). Writing to the GOT causes SIGSEGV. GOT overwrite attacks are completely blocked.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        // Full RELRO: entire GOT region is read-only
+        sim.markRegion(0, 12);
+        if (aux) {
+          aux.setGOT([
+            { name: 'puts', addr: 0x0804c000, value: 0xf7e5f150, resolved: true, overwritten: false },
+            { name: 'printf', addr: 0x0804c004, value: 0xf7e60200, resolved: true, overwritten: false },
+            { name: 'gets', addr: 0x0804c008, value: 0xf7e5e890, resolved: true, overwritten: false },
+          ]);
+        }
+      },
     },
     {
       action: 'done',
       log: ['success', 'RELRO summary: Partial RELRO leaves .got.plt writable (GOT overwrites work). Full RELRO resolves all symbols at startup and marks the GOT read-only (GOT overwrites blocked). The tradeoff: Full RELRO increases startup time because all symbols are resolved eagerly.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        if (aux) {
+          aux.setGOT([
+            { name: 'puts', addr: 0x0804c000, value: 0xf7e5f150, resolved: true, overwritten: false },
+            { name: 'printf', addr: 0x0804c004, value: 0xf7e60200, resolved: true, overwritten: false },
+            { name: 'gets', addr: 0x0804c008, value: 0xf7e5e890, resolved: true, overwritten: false },
+          ]);
+        }
+      },
     },
   ],
   check() { return false; },

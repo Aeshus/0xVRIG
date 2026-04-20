@@ -9,5 +9,5 @@ import { adv2102 } from './adv2-102';
 import { Exercise } from '../types';
 
 export const unit17Exercises: Exercise[] = [
-  adv295, adv296, adv297, adv298, adv299, adv2100, adv2101, adv2102,
+  adv295, adv299, adv298, adv296, adv297, adv2100, adv2101, adv2102,
 ];

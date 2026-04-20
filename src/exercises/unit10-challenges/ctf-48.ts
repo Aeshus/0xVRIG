@@ -37,6 +37,11 @@ export const ctf48: Exercise = {
     if (!heap || !heap.funcPtrs?.handler) return false;
     return heap.funcPtrs.handler.current === symbols.win;
   },
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+  ],
   winTitle: 'Heap Sandbox Complete!',
   winMsg: 'You exploited a heap vulnerability in free-form mode.',
 };

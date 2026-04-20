@@ -34,6 +34,7 @@ export const exercise: Exercise = {
       { text: 'hlt', cls: 'asm' },
     ],
   },
+  protections: [{ name: 'ASLR', status: 'active' }],
   mode: 'asm-quiz',
   vizMode: 'asm',
   asmInstructions: instructions,

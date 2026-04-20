@@ -44,6 +44,12 @@ const adv93: Exercise = {
   },
   winTitle: 'FLAG{file_vtable_hijack}',
   winMsg: 'You hijacked control flow through the _IO_FILE vtable. In real exploits, attackers corrupt the __vtable pointer in a FILE structure to redirect fclose/fflush to arbitrary code. This technique was widely used before glibc 2.24 added IO_validate_vtable. Modern variants use _IO_str_jumps to bypass the validation.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+    { name: 'RELRO', status: 'active' },
+  ],
   realWorld: 'CVE-2018-16323 (ImageMagick): A heap buffer over-read allowed corruption of FILE structures, demonstrating the real-world applicability of FILE structure attacks in complex applications.',
 };
 

@@ -43,6 +43,7 @@ const ex13StackPivot: Exercise = {
   nx: true,
   rop: true,
   pivot: true,
+  protections: [{ name: 'NX/DEP', status: 'bypassed' }],
   gadgets: {
     0x08048300: 'pop eax; ret',
     0x08048304: 'pop ebx; ret',

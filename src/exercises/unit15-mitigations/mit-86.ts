@@ -45,8 +45,10 @@ export const exercise: Exercise = {
       { text: 'hlt', cls: 'asm' },
     ],
   },
+  protections: [{ name: 'ASLR', status: 'active' }, { name: 'NX/DEP', status: 'active' }, { name: 'Canary', status: 'active' }, { name: 'PIE', status: 'active' }, { name: 'RELRO', status: 'active' }, { name: 'CFI', status: 'active' }],
   mode: 'asm-quiz',
   vizMode: 'asm',
+  auxViz: ['memory-map'],
   asmArch: 'x86-64',
   asmInstructions: instructions,
   asmQuiz: [

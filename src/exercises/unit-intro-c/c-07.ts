@@ -28,23 +28,28 @@ const c07: Exercise = {
       action: 'init',
       srcLine: 4,
       log: ['info', 'We declare int secret = 0x42, then char buf[8]. On the stack, secret sits right after buf in memory. The layout is: [buf - 8 bytes] [secret - 4 bytes] [saved base pointer] [return address].'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearBlank(); sim._writeLE(8, 0x42, 4); sim.markRegion(0, 12); },
     },
     {
       action: 'init',
       srcLine: 7,
       log: ['warn', 'strcpy(buf, "AAAAAAAAAAAAAAAA") copies 16 bytes (16 A characters + a null terminator) into buf, which is only 8 bytes. strcpy does not check the destination size -- it just keeps copying until it hits the null byte in the source string.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.writeWord(0, [0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41]); sim.markRegion(0, 8); },
     },
     {
       action: 'init',
       log: ['warn', 'The first 8 bytes of "A"s fill buf correctly. But bytes 9-16 overflow past buf and overwrite whatever comes next -- in this case, the variable secret gets overwritten with 0x41414141 (AAAA in ASCII).'],
+      vizAction: (sim: any) => { if (!sim) return; sim.writeWord(8, [0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41]); sim.markRegion(8, 16); },
     },
     {
       action: 'init',
       log: ['info', 'This is a buffer overflow. The safer alternative is strncpy(buf, src, 8), which limits the copy to at most 8 bytes. Modern code should use strlcpy or snprintf instead of strcpy entirely.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.markRegion(0, 16); },
     },
     {
       action: 'init',
       log: ['warn', 'Other common pitfalls: off-by-one errors (writing exactly 1 byte past the end), dangling pointers (using memory after free), and double-free (freeing the same pointer twice). Each of these creates opportunities for attackers.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearHighlight(); },
     },
     {
       action: 'done',

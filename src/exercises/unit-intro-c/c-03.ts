@@ -30,25 +30,30 @@ const c03: Exercise = {
       action: 'init',
       srcLine: 4,
       log: ['info', 'char name[8] declares an array of 8 bytes. The string "Alice" fills the first 5 bytes with the ASCII values for A, l, i, c, e. The 6th byte is automatically set to 0x00 -- the "null terminator" -- which marks the end of the string.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearBlank(); sim.writeWord(0, [0x41, 0x6C, 0x69, 0x63, 0x65, 0x00]); sim.markRegion(0, 8); },
     },
     {
       action: 'init',
       srcLine: 5,
       log: ['info', 'char buf[8] creates another 8-byte block right next to name in memory. Arrays in C are laid out contiguously -- each element sits right after the previous one, with no gaps or fences between different arrays.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.markRegion(8, 16); },
     },
     {
       action: 'init',
       log: ['info', 'The null terminator (0x00) is how C knows where a string ends. Functions like printf and strlen scan forward byte by byte until they hit 0x00. If that byte is missing or overwritten, the function will keep reading into whatever memory comes next.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.markRegion(5, 6); },
     },
     {
       action: 'init',
       srcLine: 9,
       log: ['info', 'name[7] = \'Z\' is fine -- index 7 is the last valid position in an 8-element array (indices 0 through 7). This writes one byte within bounds.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.writeWord(7, [0x5A]); sim.markRegion(7, 8); },
     },
     {
       action: 'init',
       srcLine: 10,
       log: ['warn', 'name[10] = \'!\' is OUT OF BOUNDS. Index 10 is past the end of the 8-byte array. But C does not check! It happily writes to whatever memory is 10 bytes past the start of name. This could overwrite data belonging to buf or other variables.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.writeWord(10, [0x21]); sim.markRegion(8, 16); },
     },
     {
       action: 'done',

@@ -47,25 +47,33 @@ for (const ex of ALL_EXERCISES) {
 }
 
 export const UNITS: Unit[] = [
+  // Foundations
   { id: 'unit-intro-c', name: 'Intro to C', exerciseIds: ['c-01', 'c-02', 'c-03', 'c-04', 'c-05', 'c-06', 'c-07', 'c-08'] },
   { id: 'unit0-asm', name: 'ASM', exerciseIds: ['asm-01', 'asm-02', 'asm-03', 'asm-04', 'asm-05', 'asm-06', 'asm-07', 'asm-08', 'asm-09', 'asm-10'] },
-  { id: 'unit1-stack', name: 'STACK', exerciseIds: ['stack-01', 'stack-02', 'stack-03', 'stack-04', 'stack-05'] },
-  { id: 'unit2-logic', name: 'Logic & Input Mismatches', exerciseIds: ['logic-06', 'logic-07', 'logic-08', 'logic-09', 'logic-10'] },
-  { id: 'unit3-stack-ii', name: 'STACK II', exerciseIds: ['stack2-11', 'stack2-12', 'stack2-13', 'stack2-14'] },
-  { id: 'unit4-heap', name: 'HEAP', exerciseIds: ['heap-15', 'heap-16', 'heap-17', 'heap-18'] },
-  { id: 'unit5-heap-ii', name: 'HEAP II', exerciseIds: ['heap2-19', 'heap2-20', 'heap2-21', 'heap2-22', 'heap2-23', 'heap2-24', 'heap2-25', 'heap2-26'] },
-  { id: 'unit6-final', name: 'Exploit Chains', exerciseIds: ['final-27', 'final-28'] },
   { id: 'unit7-x64', name: 'x86-64', exerciseIds: ['x64-29', 'x64-30', 'x64-31', 'x64-32', 'x64-33', 'x64-34', 'x64-35', 'x64-36'] },
-  { id: 'unit8-win-stack', name: 'WIN STACK', exerciseIds: ['win-37', 'win-38', 'win-39', 'win-40', 'win-41', 'win-42'], platform: 'windows' },
-  { id: 'unit9-win-heap', name: 'WIN HEAP', exerciseIds: ['win-43', 'win-44', 'win-45', 'win-46'], platform: 'windows' },
-  { id: 'unit10-challenges', name: 'CTF Lab', exerciseIds: ['ctf-47', 'ctf-48', 'ctf-49', 'ctf-50', 'ctf-51', 'ctf-52'] },
+  { id: 'unit1-stack', name: 'STACK', exerciseIds: ['stack-01', 'stack-02', 'stack-03', 'stack-04', 'stack-05'] },
+  { id: 'unit3-stack-ii', name: 'STACK II', exerciseIds: ['stack2-11', 'stack2-12', 'stack2-13', 'stack2-14'] },
+  // Logic & Input
+  { id: 'unit2-logic', name: 'Logic & Input Mismatches', exerciseIds: ['logic-06', 'logic-07', 'logic-08', 'logic-09', 'logic-10'] },
+  // Linux Heap
   { id: 'unit11-heap-internals', name: 'Heap Internals', exerciseIds: ['hint-53', 'hint-54', 'hint-55', 'hint-56', 'hint-57', 'hint-58'] },
+  { id: 'unit4-heap', name: 'HEAP', exerciseIds: ['heap-15', 'heap-18', 'heap-16', 'heap-17'] },
+  { id: 'unit5-heap-ii', name: 'HEAP II', exerciseIds: ['heap2-19', 'heap2-20', 'heap2-21', 'heap2-22', 'heap2-23', 'heap2-24', 'heap2-25', 'heap2-26'] },
+  // Windows
+  { id: 'unit8-win-stack', name: 'WIN STACK', exerciseIds: ['win-37', 'win-38', 'win-40', 'win-39', 'win-41', 'win-42'], platform: 'windows' },
   { id: 'unit12-win-heap-internals', name: 'Win Heap Internals', exerciseIds: ['whint-59', 'whint-60', 'whint-61', 'whint-62'], platform: 'windows' },
+  { id: 'unit9-win-heap', name: 'WIN HEAP', exerciseIds: ['win-43', 'win-44', 'win-45', 'win-46'], platform: 'windows' },
+  // Architectures
   { id: 'unit13-arm', name: 'ARM', exerciseIds: ['arm-63', 'arm-64', 'arm-65', 'arm-66', 'arm-67', 'arm-68', 'arm-69', 'arm-70'] },
   { id: 'unit14-mips', name: 'MIPS', exerciseIds: ['mips-71', 'mips-72', 'mips-73', 'mips-74', 'mips-75', 'mips-76', 'mips-77', 'mips-78'] },
-  { id: 'unit15-mitigations', name: 'Mitigations', exerciseIds: ['mit-79', 'mit-80', 'mit-81', 'mit-82', 'mit-83', 'mit-84', 'mit-85', 'mit-86'] },
+  // Defense & Theory
+  { id: 'unit15-mitigations', name: 'Mitigations', exerciseIds: ['mit-79', 'mit-83', 'mit-80', 'mit-81', 'mit-82', 'mit-84', 'mit-85', 'mit-86'] },
+  // Advanced
+  { id: 'unit6-final', name: 'Exploit Chains', exerciseIds: ['final-27', 'final-28'] },
   { id: 'unit16-advanced', name: 'Advanced I', exerciseIds: ['adv-87', 'adv-88', 'adv-89', 'adv-90', 'adv-91', 'adv-92', 'adv-93', 'adv-94'] },
-  { id: 'unit17-advanced-ii', name: 'Advanced II', exerciseIds: ['adv2-95', 'adv2-96', 'adv2-97', 'adv2-98', 'adv2-99', 'adv2-100', 'adv2-101', 'adv2-102'] },
+  { id: 'unit17-advanced-ii', name: 'Advanced II', exerciseIds: ['adv2-95', 'adv2-99', 'adv2-98', 'adv2-96', 'adv2-97', 'adv2-100', 'adv2-101', 'adv2-102'] },
+  // Challenges
+  { id: 'unit10-challenges', name: 'CTF Lab', exerciseIds: ['ctf-47', 'ctf-48', 'ctf-49', 'ctf-50', 'ctf-51', 'ctf-52'] },
 ];
 
 export const TRACKS: Track[] = [

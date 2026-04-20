@@ -26,9 +26,7 @@ export default function ExerciseNav() {
               if (isActive) classes.push('active');
               if (isCompleted) classes.push('completed');
 
-              // Extract numeric part from id for display (e.g., 'stack-01' -> '01')
-              const numMatch = exId.match(/(\d+)$/);
-              const label = numMatch ? numMatch[1].padStart(2, '0') : exId;
+              const displayTitle = ex.title.replace(/^\d+:\s*/, '');
 
               return (
                 <button
@@ -37,7 +35,7 @@ export default function ExerciseNav() {
                   title={ex.title}
                   onClick={() => router.push(`/exercise/${exId}`)}
                 >
-                  {label}
+                  {displayTitle}
                 </button>
               );
             })}

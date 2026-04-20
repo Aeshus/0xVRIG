@@ -31,22 +31,27 @@ const exercise: Exercise = {
     {
       action: 'init',
       log: ['info', 'The Segment Heap (_SEGMENT_HEAP) is a complete redesign of the Windows heap introduced in Windows 10. It replaces _HEAP for modern apps. The core idea: route allocations to different backends depending on size, with stronger metadata validation and guard pages.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.clear?.(); },
     },
     {
       action: 'malloc', size: 128, name: 'S', srcLine: 7,
       log: ['action', 'HeapAlloc(h, 0, 128) -- small allocation, handled by the LFH component. Segment Heap\'s LFH works similarly to NT Heap\'s LFH: fixed-size slots in UserBlocks, bitmap tracking, randomized selection. Sizes up to ~512 bytes go through this path once LFH is active for the bucket.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('S', 'data'); heap.annotateField?.('S', 'size', 'LFH tier (<512B)'); },
     },
     {
       action: 'malloc', size: 4096, name: 'M', srcLine: 8,
       log: ['action', 'HeapAlloc(h, 0, 4096) -- medium allocation, routed to the Variable Size (VS) backend. VS allocations use _HEAP_VS_SUBSEGMENT structures within larger committed pages. Each VS block has its own encoded header. The VS backend handles sizes roughly 512 bytes to 128 KB.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('M', 'data'); heap.annotateField?.('M', 'size', 'VS tier (512B-128KB)'); },
     },
     {
       action: 'malloc', size: 512000, name: 'L', srcLine: 9,
       log: ['action', 'HeapAlloc(h, 0, 512000) -- large allocation (> 128 KB). Routed directly to VirtualAlloc with dedicated pages. A _HEAP_LARGE_ALLOC_DATA record tracks the allocation. These are the easiest to find in memory -- each gets its own page-aligned region.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('L', 'data'); heap.annotateField?.('L', 'size', 'VirtualAlloc (>128KB)'); },
     },
     {
       action: 'init',
       log: ['warn', 'Segment Heap metadata is XOR-encoded (like NT Heap, but with a different scheme). Each _HEAP_VS_CHUNK_HEADER is encoded using RtlpHpHpContext. Guard pages are placed between segments to catch linear overflows. These mitigations make metadata corruption significantly harder than on older NT Heap.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('S', 'header'); heap.highlightChunk?.('M', 'header'); },
     },
     {
       action: 'done',

@@ -53,6 +53,13 @@ const adv94: Exercise = {
   },
   winTitle: 'FLAG{fsop_master}',
   winMsg: 'You mastered File Stream Oriented Programming \u2014 the apex of glibc heap exploitation. By chaining an unsorted bin attack to overwrite _IO_list_all with a crafted fake FILE structure, you triggered __overflow through the abort() -> _IO_flush_all_lockp() path. This technique, introduced in the "House of Orange" paper, remains relevant in modern CTFs and was the basis for several real-world glibc exploitation chains. In glibc 2.24+, the _IO_str_jumps bypass extends this technique past IO_validate_vtable.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+    { name: 'RELRO', status: 'active' },
+    { name: 'vtable validation', status: 'bypassed' },
+  ],
   realWorld: 'CVE-2017-1000366 (Stack Clash + glibc): Combined stack-heap collision with FSOP-style FILE structure corruption to achieve local privilege escalation on Linux systems.',
 };
 

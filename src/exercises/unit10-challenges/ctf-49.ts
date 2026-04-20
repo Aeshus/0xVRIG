@@ -33,6 +33,11 @@ export const ctf49: Exercise = {
     const retAddr = sim.readWord(sim.retOffset);
     return retAddr === symbols.win;
   },
+  protections: [
+    { name: 'NX', status: 'disabled' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+  ],
   winTitle: 'CTF Easy Solved!',
   winMsg: 'Basic ret2win — the bread and butter of binary exploitation.',
 };

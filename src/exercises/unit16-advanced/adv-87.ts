@@ -38,26 +38,32 @@ const adv87: Exercise = {
     {
       action: 'init',
       log: ['info', 'C++ classes with virtual methods use a hidden mechanism called "virtual dispatch." The compiler generates a vtable (virtual method table) for each class and stores a pointer to it inside every object.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.clear?.(); },
     },
     {
       action: 'malloc', size: 8, name: 'Animal', srcLine: 17,
       log: ['action', 'new Animal() allocates 8 bytes on the heap: 4 bytes for the vptr (hidden, at offset 0) and 4 bytes for the health field (at offset 4). The constructor automatically sets the vptr.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('Animal', 'data'); heap.annotateField?.('Animal', 'data', '[vptr(4)|health(4)]'); },
     },
     {
       action: 'init',
       log: ['info', 'The vptr at [obj+0x00] is set to the address of Animal_vtable. This vtable lives in a read-only section (.rodata) and is shared by ALL Animal objects. It contains one function pointer per virtual method.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightField?.('Animal', 'data'); heap.annotateField?.('Animal', 'data', 'vptr -> Animal_vtable (.rodata)'); },
     },
     {
       action: 'init', srcLine: 18,
       log: ['info', 'a->health = 100 writes to [obj+0x04]. The data fields always come after the vptr. If there were multiple inheritance, there could be multiple vptrs, but single inheritance gives exactly one at offset 0.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.annotateField?.('Animal', 'data', 'vptr | health=100'); },
     },
     {
       action: 'init', srcLine: 19,
       log: ['action', 'a->speak() compiles to: (1) load vptr: mov eax, [ecx] where ecx = obj address, (2) index the vtable: speak is slot 0, so call [eax+0]. The CPU dereferences the vptr, finds speak\'s address in the vtable, and jumps there.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightField?.('Animal', 'data'); heap.annotateField?.('Animal', 'data', 'vptr[0] -> speak()'); },
     },
     {
       action: 'init',
       log: ['warn', 'If an attacker overwrites the vptr to point at a fake vtable they control, the virtual call will jump to an attacker-chosen address. This is vtable hijacking \u2014 one of the most exploited vulnerability classes in browsers and document parsers.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.annotateField?.('Animal', 'data', 'CORRUPT vptr -> fake vtable!'); },
     },
     {
       action: 'done',

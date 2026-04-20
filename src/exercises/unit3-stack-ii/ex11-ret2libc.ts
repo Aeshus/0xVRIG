@@ -35,6 +35,7 @@ const ex11Ret2libc: Exercise = {
   aslr: false,
   nx: true,
   ret2libc: true,
+  protections: [{ name: 'NX/DEP', status: 'bypassed' }],
   check(sim, _heap, symbols) {
     const retAddr = sim.getRetAddr();
     const argOffset = sim.bufSize + sim.canarySize + sim.ebpSize + sim.retSize + 4;

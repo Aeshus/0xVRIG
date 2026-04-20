@@ -36,6 +36,11 @@ export const ctf50: Exercise = {
     const retAddr = sim.readWord(sim.retOffset);
     return retAddr === symbols.win && sim.checkCanary();
   },
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'active' },
+  ],
   winTitle: 'CTF Medium Solved!',
   winMsg: 'Format string leak + canary bypass — a classic two-stage exploit.',
 };

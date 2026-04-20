@@ -10,7 +10,7 @@ function retAddrInMain(symbols: Record<string, number>): number {
 }
 
 export default function StepControls() {
-  const { state, dispatch, stackSim, heapSim, currentExercise } = useExerciseContext();
+  const { state, dispatch, stackSim, heapSim, auxViz, currentExercise } = useExerciseContext();
 
   if (!currentExercise || !currentExercise.steps) return null;
 
@@ -83,6 +83,10 @@ export default function StepControls() {
       }
     } else {
       dispatch({ type: 'LOG', cls: step.log[0], msg: step.log[1] });
+    }
+
+    if (step.vizAction) {
+      step.vizAction(sim, heap, auxViz.current);
     }
 
     if (step.srcLine !== undefined) dispatch({ type: 'SET_EXEC_LINE', line: step.srcLine });

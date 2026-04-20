@@ -33,26 +33,32 @@ const hint53: Exercise = {
     {
       action: 'init',
       log: ['info', 'glibc uses ptmalloc2, a thread-aware allocator derived from dlmalloc. Memory is divided into "chunks" with metadata headers. Let\'s allocate a chunk and examine its internal structure.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.clear?.(); },
     },
     {
       action: 'malloc', size: 16, name: 'A', srcLine: 6,
       log: ['action', 'malloc(16) -- the allocator carves a 24-byte chunk from the top. Why 24? The 8-byte header (prev_size + size) plus 16 bytes of user data.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightChunk?.('A', 'header'); },
     },
     {
       action: 'init',
       log: ['info', 'The first 4 bytes of the header are prev_size. This field is only meaningful when the previous chunk is free (P bit = 0). Right now P = 1, so prev_size is unused.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightField?.('A', 'prev_size'); },
     },
     {
       action: 'init', srcLine: 12,
       log: ['info', 'The next 4 bytes are the size field. The chunk size is always 8-byte aligned, so the bottom 3 bits encode flags: bit 0 = PREV_INUSE (P), bit 1 = IS_MMAPPED (M), bit 2 = NON_MAIN_ARENA (A).'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightField?.('A', 'size'); },
     },
     {
       action: 'init', srcLine: 13,
       log: ['info', 'For our 24-byte chunk: size field = 0x19 = 25 decimal. Strip the flags: 24 (chunk size). The P bit is set (1) because the previous chunk (or arena boundary) is in use.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.annotateField?.('A', 'size', '0x19 = 24 | P'); },
     },
     {
       action: 'free', name: 'A', srcLine: 14,
       log: ['action', 'free(A) -- the chunk is returned to the allocator. Its user data area is now repurposed to store freelist pointers (fd, bk). The header remains, but the chunk is marked as free.'],
+      vizAction: (_sim: any, heap: any) => { if (!heap) return; heap.highlightField?.('A', 'fd'); },
     },
     {
       action: 'done',

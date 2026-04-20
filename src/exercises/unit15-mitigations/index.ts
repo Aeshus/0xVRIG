@@ -9,5 +9,5 @@ import { exercise as mit86 } from './mit-86';
 import { Exercise } from '../types';
 
 export const unit15Exercises: Exercise[] = [
-  mit79, mit80, mit81, mit82, mit83, mit84, mit85, mit86,
+  mit79, mit83, mit80, mit81, mit82, mit84, mit85, mit86,
 ];

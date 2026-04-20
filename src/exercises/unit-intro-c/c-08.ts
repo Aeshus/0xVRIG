@@ -34,24 +34,40 @@ const c08: Exercise = {
     {
       action: 'init',
       log: ['info', 'This program asks for a password and checks it against "s3cret." If the password matches, it sets authorized = 1. Looks reasonable, right? Let\'s examine it more carefully.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearBlank(); },
     },
     {
       action: 'init',
       srcLine: 4,
       log: ['info', 'On the stack, authorized (4 bytes) sits right after input (16 bytes). The layout is: [input - 16 bytes] [authorized - 4 bytes] [saved base pointer] [return address].'],
+      vizAction: (sim: any) => { if (!sim) return; sim.markRegion(0, 16); },
     },
     {
       action: 'init',
       srcLine: 7,
       log: ['warn', 'There it is: gets(input). The function gets() reads from the keyboard until a newline, with NO limit on how many bytes it reads. If the user types more than 16 characters, the extra bytes overflow past input and overwrite whatever comes next.'],
+      vizAction: (sim: any) => {
+        if (!sim) return;
+        // Simulate normal input: "s3cret" into the 16-byte buffer
+        sim.writeWord(0, [0x73, 0x33, 0x63, 0x72, 0x65, 0x74, 0x00]);
+        sim.markRegion(0, 7);
+      },
     },
     {
       action: 'init',
       log: ['warn', 'Attack 1: Type 16 garbage characters followed by any non-zero byte. The overflow overwrites authorized with a non-zero value, so the "if (authorized)" check passes -- access is granted without knowing the password.'],
+      vizAction: (sim: any) => {
+        if (!sim) return;
+        // Overflow: 16 'A's fill the buffer, then overflow into authorized
+        sim.writeWord(0, [0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41,
+                          0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41, 0x41]);
+        sim.markRegion(0, 16);
+      },
     },
     {
       action: 'init',
       log: ['warn', 'Attack 2: Type even more characters to overwrite past authorized, past the saved base pointer, and into the return address. By crafting the right bytes, the attacker can redirect the program to execute any code they want.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearHighlight(); },
     },
     {
       action: 'done',

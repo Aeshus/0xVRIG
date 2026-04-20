@@ -40,6 +40,12 @@ const adv90: Exercise = {
   },
   winTitle: 'FLAG{uaf_vtable_hijack}',
   winMsg: 'You combined use-after-free with vtable hijacking. The freed C++ object\'s memory was reclaimed by a new allocation, and you overwrote the vptr with a pointer to win(). When the dangling pointer called the virtual method, it followed your fake vptr. This is exactly how major browser exploits work \u2014 free a DOM object, reclaim its memory, and hijack the vtable.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+    { name: 'CFI', status: 'disabled' },
+  ],
   realWorld: 'CVE-2019-5786 (Chrome FileReader UAF): A use-after-free in Chrome\'s FileReader API allowed attackers to overwrite a freed C++ object\'s vtable and achieve code execution, exploited as a 0-day in the wild.',
 };
 

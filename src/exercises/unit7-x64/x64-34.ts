@@ -47,6 +47,7 @@ export const x6434: Exercise = {
   vizMode: 'asm',
   asmArch: 'x86-64',
   asmInstructions: instructions,
+  protections: [{ name: 'Canary', status: 'bypassed' }],
   asmQuiz: [
     { question: 'What is byte 0 of an x64 stack canary always set to?', answer: 0, format: 'hex', hint: 'The null byte prevents string functions from reading past the canary.' },
     { question: 'Maximum brute-force attempts to leak a full 8-byte canary (byte-by-byte)?', answer: 1792, format: 'decimal', hint: '7 unknown bytes × 256 guesses each = 1792.' },

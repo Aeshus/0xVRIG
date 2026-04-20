@@ -42,6 +42,7 @@ const ex12RopBasics: Exercise = {
   aslr: false,
   nx: true,
   rop: true,
+  protections: [{ name: 'NX/DEP', status: 'bypassed' }],
   gadgets: {
     0x08048300: 'pop eax; ret',
     0x08048304: 'pop ebx; ret',

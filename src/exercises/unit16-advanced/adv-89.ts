@@ -43,6 +43,12 @@ const adv89: Exercise = {
   },
   winTitle: 'FLAG{type_confusion}',
   winMsg: 'You exploited a type confusion where a Base object was misinterpreted as an Admin object. The field at offset 8 in Base (user data) was treated as a function pointer in Admin. Type confusion is a leading vulnerability class in JavaScript engines and browsers.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+    { name: 'CFI', status: 'disabled' },
+  ],
   realWorld: 'CVE-2017-0037 (Edge/IE): A type confusion in the JavaScript engine allowed attackers to execute arbitrary code by confusing object layouts in the Chakra JIT compiler.',
 };
 

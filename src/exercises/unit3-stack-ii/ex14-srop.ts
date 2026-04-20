@@ -39,6 +39,7 @@ const ex14Srop: Exercise = {
   aslr: false,
   nx: true,
   srop: true,
+  protections: [{ name: 'NX/DEP', status: 'bypassed' }],
   check(_sim, _heap, _symbols, flags) {
     return flags.sropWin === true;
   },

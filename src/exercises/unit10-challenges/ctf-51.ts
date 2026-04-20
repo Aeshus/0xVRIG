@@ -40,6 +40,11 @@ export const ctf51: Exercise = {
     const fnPtrs = heap.funcPtrs;
     return fnPtrs?.action?.current === symbols.win || fnPtrs?.handler?.current === symbols.win;
   },
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+  ],
   winTitle: 'CTF Hard Solved!',
   winMsg: 'Tcache poisoning → arbitrary write → function pointer hijack. Elite!',
 };

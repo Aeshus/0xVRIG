@@ -45,6 +45,12 @@ const adv2101: Exercise = {
   },
   winTitle: 'FLAG{data_only_attack}',
   winMsg: 'You corrupted a non-control variable (isAdmin) without modifying any code pointer. Stack canaries, CFI, and shadow stacks would not have caught this — they only protect control flow. Data-only attacks remain effective against all control-flow integrity defenses, which is why Data-Flow Integrity (DFI) research is an active area.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'active' },
+    { name: 'Canary', status: 'active' },
+    { name: 'CFI', status: 'active' },
+  ],
   realWorld: 'CVE-2013-2028: Nginx data-only attack via stack buffer overflow — corrupting a signed integer to bypass length checks without modifying return addresses.',
 };
 

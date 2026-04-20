@@ -28,29 +28,111 @@ const exercise: Exercise = {
       { text: '// heap   0x08050000  RW- (no exec)', cls: 'cmt' },
     ],
   },
+  protections: [{ name: 'NX/DEP', status: 'active' }],
   mode: 'step',
   vizMode: 'stack',
+  auxViz: ['memory-map'],
   bufSize: 64,
   steps: [
     {
       action: 'init',
       log: ['info', 'DEP (Data Execution Prevention) enforces W^X: each memory page is either writable or executable, never both. The stack is marked RW- (read-write, no execute). The .text section is R-X (read-execute, no write). This is enforced by the CPU\'s NX bit (AMD) or XD bit (Intel) in page table entries.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearBlank();
+        sim.clearHighlight();
+        if (aux) {
+          aux.clearAll();
+          aux.setMemMap([
+            { name: '.text', start: 0x08048000, end: 0x08049000, perms: 'R-X' },
+            { name: '.data', start: 0x0804a000, end: 0x0804b000, perms: 'RW-' },
+            { name: 'stack', start: 0xbfff0000, end: 0xc0000000, perms: 'RW-' },
+            { name: 'heap', start: 0x08050000, end: 0x08060000, perms: 'RW-' },
+          ]);
+        }
+      },
     },
     {
       action: 'init', srcLine: 5,
       log: ['info', 'Classic attack: inject shellcode into a stack buffer, then overwrite the return address to point at the buffer. Before DEP, this worked because the CPU didn\'t check if the stack page was executable.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        // Write shellcode-like bytes into the buffer region
+        const shellcode = [0x31, 0xc0, 0x50, 0x68, 0x2f, 0x2f, 0x73, 0x68, 0x68, 0x2f, 0x62, 0x69, 0x6e, 0x89, 0xe3, 0xcd, 0x80];
+        for (let i = 0; i < shellcode.length && i < sim.bufSize; i++) {
+          sim.writeWord(i, [shellcode[i]]);
+        }
+        if (aux) {
+          aux.setMemMap([
+            { name: '.text', start: 0x08048000, end: 0x08049000, perms: 'R-X' },
+            { name: '.data', start: 0x0804a000, end: 0x0804b000, perms: 'RW-' },
+            { name: 'stack', start: 0xbfff0000, end: 0xc0000000, perms: 'RW-', highlight: true },
+            { name: 'heap', start: 0x08050000, end: 0x08060000, perms: 'RW-' },
+          ]);
+        }
+      },
     },
     {
       action: 'init', srcLine: 9,
       log: ['action', 'The attacker overflows buf[64] with shellcode bytes (\\x31\\xc0\\x50...) and overwrites the saved return address to point at buf on the stack.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        // Overwrite return address area to point back at buf (stack address)
+        const retOffset = sim.bufSize + sim.canarySize + sim.ebpSize;
+        const bufAddr = sim.baseAddr;
+        sim._writeLE(retOffset, bufAddr, sim.retSize);
+        sim.markRegion(retOffset, retOffset + sim.retSize);
+        if (aux) {
+          aux.setMemMap([
+            { name: '.text', start: 0x08048000, end: 0x08049000, perms: 'R-X' },
+            { name: '.data', start: 0x0804a000, end: 0x0804b000, perms: 'RW-' },
+            { name: 'stack', start: 0xbfff0000, end: 0xc0000000, perms: 'RW-', highlight: true },
+            { name: 'heap', start: 0x08050000, end: 0x08060000, perms: 'RW-' },
+          ]);
+        }
+      },
     },
     {
       action: 'init', srcLine: 11,
       log: ['warn', 'BLOCKED! When the function returns and EIP jumps to the stack address, the CPU checks page table permissions. The stack page has NX=1 (no execute). The CPU raises a hardware exception (SIGSEGV on Linux, STATUS_ACCESS_VIOLATION on Windows). The shellcode never runs.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        // Highlight the return address area to show it is blocked
+        const retOffset = sim.bufSize + sim.canarySize + sim.ebpSize;
+        sim.markRegion(retOffset, retOffset + sim.retSize);
+        if (aux) {
+          aux.setMemMap([
+            { name: '.text', start: 0x08048000, end: 0x08049000, perms: 'R-X' },
+            { name: '.data', start: 0x0804a000, end: 0x0804b000, perms: 'RW-' },
+            { name: 'stack', start: 0xbfff0000, end: 0xc0000000, perms: 'RW-', highlight: true, blocked: true },
+            { name: 'heap', start: 0x08050000, end: 0x08060000, perms: 'RW-' },
+          ]);
+        }
+      },
     },
     {
       action: 'init',
       log: ['info', 'Bypass technique: Return-Oriented Programming (ROP). Instead of injecting code, the attacker chains small sequences of existing executable code ("gadgets") ending in RET. Each gadget performs one operation. The chain of return addresses on the stack drives execution through these gadgets, never executing data.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        // Show ROP gadget addresses chained on the stack past the buffer
+        const retOffset = sim.bufSize + sim.canarySize + sim.ebpSize;
+        sim._writeLE(retOffset, 0x08048200, sim.retSize);  // gadget 1
+        if (retOffset + sim.retSize < sim.totalSize) {
+          sim._writeLE(retOffset + sim.retSize, 0x08048310, sim.retSize);  // gadget 2
+        }
+        sim.markRegion(retOffset, Math.min(retOffset + sim.retSize * 2, sim.totalSize));
+        if (aux) {
+          aux.setMemMap([
+            { name: '.text', start: 0x08048000, end: 0x08049000, perms: 'R-X', highlight: true },
+            { name: '.data', start: 0x0804a000, end: 0x0804b000, perms: 'RW-' },
+            { name: 'stack', start: 0xbfff0000, end: 0xc0000000, perms: 'RW-' },
+            { name: 'heap', start: 0x08050000, end: 0x08060000, perms: 'RW-' },
+          ]);
+        }
+      },
     },
     {
       action: 'init',
@@ -59,6 +141,18 @@ const exercise: Exercise = {
     {
       action: 'done',
       log: ['success', 'DEP/NX prevents executing injected shellcode by marking writable pages non-executable. The CPU enforces this via the NX/XD bit in page tables. Bypassed by ROP (reusing existing code), mprotect-based attacks, or JIT spraying. Essential but not sufficient on its own.'],
+      vizAction: (sim: any, heap: any, aux?: any) => {
+        if (!sim) return;
+        sim.clearHighlight();
+        if (aux) {
+          aux.setMemMap([
+            { name: '.text', start: 0x08048000, end: 0x08049000, perms: 'R-X' },
+            { name: '.data', start: 0x0804a000, end: 0x0804b000, perms: 'RW-' },
+            { name: 'stack', start: 0xbfff0000, end: 0xc0000000, perms: 'RW-' },
+            { name: 'heap', start: 0x08050000, end: 0x08060000, perms: 'RW-' },
+          ]);
+        }
+      },
     },
   ],
   check() { return false; },

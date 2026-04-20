@@ -6,7 +6,7 @@ import { Exercise } from '../types';
 
 export const unit4Exercises: Exercise[] = [
   ex15TheHeap,
+  ex18HeapOverflow,
   ex16Uaf,
   ex17DoubleFree,
-  ex18HeapOverflow,
 ];

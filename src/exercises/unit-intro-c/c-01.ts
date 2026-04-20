@@ -24,20 +24,24 @@ const c01: Exercise = {
     {
       action: 'init',
       log: ['info', 'In C, every variable is a named slot in memory. Unlike Python or JavaScript, you must tell the compiler how big each slot is by choosing a "type." Let\'s see how two different types get stored.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearBlank(); },
     },
     {
       action: 'init',
       srcLine: 3,
       log: ['info', 'int x = 42 -- An "int" occupies 4 bytes (32 bits). The computer stores the value 42 in hexadecimal as 0x0000002A. Those 4 bytes sit at a specific address in memory.'],
+      vizAction: (sim: any) => { if (!sim) return; sim._writeLE(0, 42, 4); sim.markRegion(0, 4); },
     },
     {
       action: 'init',
       srcLine: 4,
       log: ['info', 'char c = \'A\' -- A "char" occupies just 1 byte (8 bits). Characters are stored as numbers using the ASCII code. The letter A is 65 in decimal, or 0x41 in hex.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.writeWord(4, [0x41]); sim.markRegion(4, 5); },
     },
     {
       action: 'init',
       log: ['info', 'The sizeof operator tells you how many bytes a type uses: sizeof(int) is 4, sizeof(char) is 1. Other common types: short (2 bytes), long (4-8 bytes), double (8 bytes).'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearHighlight(); },
     },
     {
       action: 'done',

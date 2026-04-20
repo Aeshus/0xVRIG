@@ -37,6 +37,7 @@ export const exercise: Exercise = {
       { text: 'hlt', cls: 'asm' },
     ],
   },
+  protections: [{ name: 'PIE', status: 'active' }, { name: 'ASLR', status: 'active' }],
   mode: 'asm-quiz',
   vizMode: 'asm',
   asmArch: 'x86-64',

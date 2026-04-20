@@ -36,6 +36,11 @@ export const ctf47: Exercise = {
     const retAddr = sim.readWord(sim.retOffset);
     return retAddr === symbols.win;
   },
+  protections: [
+    { name: 'NX', status: 'disabled' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+  ],
   winTitle: 'Stack Sandbox Complete!',
   winMsg: 'You exploited a basic stack overflow in free-form mode.',
 };

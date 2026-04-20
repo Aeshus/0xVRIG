@@ -31,21 +31,25 @@ const c05: Exercise = {
     {
       action: 'init',
       log: ['info', 'A struct lets you group related data together under one name. In memory, the fields are laid out one after another in the order you declare them -- no magic, just consecutive bytes.'],
+      vizAction: (sim: any) => { if (!sim) return; sim.clearBlank(); },
     },
     {
       action: 'init',
       srcLine: 3,
       log: ['info', 'int hp sits at the very start of the struct (offset 0). It takes 4 bytes. So bytes 0-3 of the struct belong to hp.'],
+      vizAction: (sim: any) => { if (!sim) return; sim._writeLE(0, 100, 4); sim.markRegion(0, 4); },
     },
     {
       action: 'init',
       srcLine: 4,
       log: ['info', 'int score comes next at offset 4 (right after hp). It also takes 4 bytes, occupying bytes 4-7. The compiler calculates these offsets so it knows exactly where to read or write each field.'],
+      vizAction: (sim: any) => { if (!sim) return; sim._writeLE(4, 0, 4); sim.markRegion(4, 8); },
     },
     {
       action: 'init',
       srcLine: 5,
       log: ['info', 'char name[8] starts at offset 8. It occupies 8 bytes (offsets 8-15). The total struct size is 16 bytes. You can verify this with sizeof(struct Player).'],
+      vizAction: (sim: any) => { if (!sim) return; sim.writeWord(8, [0x41, 0x6C, 0x69, 0x63, 0x65, 0x00]); sim.markRegion(8, 16); },
     },
     {
       action: 'done',

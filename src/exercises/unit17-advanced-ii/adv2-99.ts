@@ -44,6 +44,11 @@ const adv299: Exercise = {
   },
   winTitle: 'FLAG{heap_feng_shui}',
   winMsg: 'You shaped the heap deterministically: spray to normalize layout, poke holes to create gaps, then place your buffer adjacent to the target. Heap Feng Shui originated in browser exploitation (particularly IE and Firefox) where attackers needed to reliably position JavaScript-controlled allocations next to victim objects in the heap.',
+  protections: [
+    { name: 'NX', status: 'active' },
+    { name: 'ASLR', status: 'disabled' },
+    { name: 'Canary', status: 'disabled' },
+  ],
   realWorld: 'Heap Feng Shui was pioneered by Alexander Sotirov for browser exploitation (2007) and remains fundamental to all modern browser exploit chains.',
 };
 
