@@ -340,6 +340,7 @@ main {
   font-family: var(--font); font-size: 12px; padding: 0.35rem 1rem; cursor: pointer;
 }
 @keyframes fadeIn { from { opacity: 0; transform: translate(-50%, -50%) scale(0.95); } to { opacity: 1; transform: translate(-50%, -50%) scale(1); } }
+@keyframes badgeSlideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
 
 /* CRT scanline overlay */
 .crt::after {

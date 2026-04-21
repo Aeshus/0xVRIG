@@ -92,6 +92,7 @@
   padding: 2px 4px;
   border-radius: 2px;
   white-space: nowrap;
+  overflow: hidden;
 }
 
 .instrCurrent {
@@ -125,6 +126,9 @@
   color: var(--dim);
   font-style: italic;
   margin-left: auto;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
 }
 
 .stackView {
