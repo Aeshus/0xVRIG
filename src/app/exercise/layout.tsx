@@ -1,5 +1,6 @@
 'use client';
 
+import Link from 'next/link';
 import { ExerciseContextProvider } from '@/state/ExerciseContext';
 import Sidebar from '@/components/AppShell/Sidebar';
 import SuccessBanner from '@/components/shared/SuccessBanner';
@@ -9,7 +10,7 @@ export default function ExerciseLayout({ children }: { children: React.ReactNode
     <ExerciseContextProvider>
       <div id="app">
         <header>
-          <h1>0xVRIG</h1>
+          <h1><Link href="/" style={{ color: 'inherit', textDecoration: 'none' }}>0xVRIG</Link></h1>
           <div id="badges"></div>
         </header>
         <div id="app-body">
