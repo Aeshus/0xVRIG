@@ -14,9 +14,49 @@ import AsmStepInput from './inputs/AsmStepInput';
 import AsmQuizInput from './inputs/AsmQuizInput';
 import Toolkit from './Toolkit';
 
+function getInputHint(mode?: string): string | null {
+  if (!mode) return null;
+
+  if (
+    mode === 'input-text'
+    || mode === 'input-hex'
+    || mode === 'input-fmt-read'
+    || mode === 'input-fmt-write'
+    || mode === 'input-int-overflow'
+    || mode === 'input-signedness'
+    || mode === 'heap-uaf'
+    || mode === 'heap-double-free'
+    || mode === 'heap-overflow'
+    || mode === 'heap-tcache-poison'
+    || mode === 'heap-fastbin-dup'
+    || mode === 'heap-unsorted-bin'
+    || mode === 'heap-house-force'
+    || mode === 'heap-house-spirit'
+    || mode === 'heap-house-orange'
+    || mode === 'heap-house-einherjar'
+    || mode === 'heap-house-lore'
+    || mode === 'final-chain'
+    || mode === 'final-blind'
+  ) {
+    return 'The Console updates after you submit input here. If nothing is happening yet, enter a payload and run or step the program.';
+  }
+
+  if (
+    mode === 'step'
+    || mode === 'asm-step'
+    || mode === 'asm-registers'
+    || mode === 'asm-quiz'
+  ) {
+    return 'Use the controls here to move the exercise forward. The Console fills in as you step through the program.';
+  }
+
+  return null;
+}
+
 export default function InputPanel({ showToolkit = true }: { showToolkit?: boolean }) {
   const { currentExercise, asmEmulator } = useExerciseContext();
   const ex = currentExercise;
+  const inputHint = getInputHint(ex?.mode);
 
   let content: React.ReactNode;
   if (!ex) {
@@ -81,6 +121,11 @@ export default function InputPanel({ showToolkit = true }: { showToolkit?: boole
       <div className="panel-hdr">input</div>
       <div className="panel-body">
         <div id="input-area">
+          {inputHint && (
+            <div className="input-panel-note">
+              {inputHint}
+            </div>
+          )}
           {content}
           {showToolkit && ex && <Toolkit exercise={ex} />}
         </div>

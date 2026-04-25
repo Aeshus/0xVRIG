@@ -64,20 +64,33 @@ function computeSymbols(exercise: ReturnType<typeof getExercise>): Record<string
 
 function ExerciseDirectionsPanel() {
   const { currentExercise } = useExerciseContext();
+  const [collapsed, setCollapsed] = useState(false);
 
   return (
-    <div className="panel mobile-directions-panel">
-      <div className="panel-hdr">directions</div>
-      <div className="panel-body">
-        {currentExercise ? (
-          <div
-            className="mobile-directions-content"
-            dangerouslySetInnerHTML={{ __html: currentExercise.desc }}
-          />
-        ) : (
-          <div className="mobile-directions-empty">Select an exercise to begin.</div>
-        )}
+    <div className={`panel mobile-directions-panel${collapsed ? ' is-collapsed' : ''}`}>
+      <div className="panel-hdr mobile-directions-header">
+        <span>directions</span>
+        <button
+          type="button"
+          className="mobile-directions-toggle"
+          aria-expanded={!collapsed}
+          onClick={() => setCollapsed((prev) => !prev)}
+        >
+          {collapsed ? 'Expand' : 'Minimize'}
+        </button>
       </div>
+      {!collapsed && (
+        <div className="panel-body">
+          {currentExercise ? (
+            <div
+              className="mobile-directions-content"
+              dangerouslySetInnerHTML={{ __html: currentExercise.desc }}
+            />
+          ) : (
+            <div className="mobile-directions-empty">Select an exercise to begin.</div>
+          )}
+        </div>
+      )}
     </div>
   );
 }

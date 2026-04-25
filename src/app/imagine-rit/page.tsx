@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { loadProgress } from '@/state/persistence';
 
 const EXERCISES = [
+  { id: 'rit-00', title: '00: How to Use 0xVRIG', desc: 'Get comfortable with the panels, controls, tools, and navigation before the exploitation lessons begin.' },
   { id: 'rit-01', title: '01: The Stack Frame', desc: 'Watch how the computer organizes memory — like a stack of sticky notes.' },
   { id: 'rit-02', title: '02: The Overflow', desc: 'Type too much and crash the program. Yes, it\'s that easy.' },
   { id: 'rit-03', title: '03: Hijack Execution', desc: 'Make the program run a secret function it was never supposed to call.' },
@@ -94,7 +95,7 @@ export default function ImagineRitPage() {
               What to Expect
             </div>
             <div style={{ color: 'var(--text)', fontSize: '0.95rem', lineHeight: '1.7' }}>
-              5 guided exercises
+              6 guided exercises
             </div>
             <div style={{ color: 'var(--text)', fontSize: '0.95rem', lineHeight: '1.7' }}>
               No prior exploitation experience required
@@ -103,7 +104,7 @@ export default function ImagineRitPage() {
               Visual stack and control-flow feedback
             </div>
             <div style={{ color: 'var(--text)', fontSize: '0.95rem', lineHeight: '1.7' }}>
-              Roughly 30 to 45 minutes total
+              Roughly 35 to 50 minutes total
             </div>
           </div>
 

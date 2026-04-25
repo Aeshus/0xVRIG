@@ -8,6 +8,7 @@ const MOBILE_BREAKPOINT = '(max-width: 900px)';
 const MOBILE_SIDEBAR_TOGGLE_EVENT = '0xvrig:toggle-mobile-sidebar';
 
 const IMAGINE_RIT_EXERCISES = [
+  { id: 'rit-00', title: 'How to Use 0xVRIG' },
   { id: 'rit-01', title: 'The Stack Frame' },
   { id: 'rit-02', title: 'The Overflow' },
   { id: 'rit-03', title: 'Hijack Execution' },
