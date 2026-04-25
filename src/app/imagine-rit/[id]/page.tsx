@@ -1,6 +1,6 @@
 import ExercisePageClient from '@/app/exercise/[id]/ExercisePageClient';
 
-const IMAGINE_RIT_IDS = ['rit-01', 'rit-02', 'rit-03', 'rit-04', 'rit-rop'];
+const IMAGINE_RIT_IDS = ['rit-00', 'rit-01', 'rit-02', 'rit-03', 'rit-04', 'rit-rop'];
 
 export function generateStaticParams() {
   return IMAGINE_RIT_IDS.map((id) => ({ id }));

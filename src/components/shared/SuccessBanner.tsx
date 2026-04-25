@@ -1,11 +1,26 @@
 'use client';
 
+import { usePathname, useRouter } from 'next/navigation';
 import { useExerciseContext } from '@/state/ExerciseContext';
 
 export default function SuccessBanner() {
   const { state, dispatch, currentExercise } = useExerciseContext();
+  const router = useRouter();
+  const pathname = usePathname();
 
   if (!state.showSuccess) return null;
+
+  const isImagineRitFinalExercise =
+    pathname?.startsWith('/imagine-rit/')
+    && currentExercise?.id === 'rit-rop';
+
+  function handleContinue() {
+    dispatch({ type: 'DISMISS_SUCCESS' });
+
+    if (isImagineRitFinalExercise) {
+      router.push('/imagine-rit/congratulations');
+    }
+  }
 
   return (
     <div id="success-banner" className="show">
@@ -26,8 +41,8 @@ export default function SuccessBanner() {
           <div style={{ color: 'var(--text-dim)' }}>{currentExercise.realWorld}</div>
         </div>
       )}
-      <button onClick={() => dispatch({ type: 'DISMISS_SUCCESS' })}>
-        Continue
+      <button className="link-button primary" onClick={handleContinue}>
+        {isImagineRitFinalExercise ? 'Finish Workshop' : 'Continue'}
       </button>
     </div>
   );

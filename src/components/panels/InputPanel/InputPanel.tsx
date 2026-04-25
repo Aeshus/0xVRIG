@@ -1,5 +1,6 @@
 'use client';
 
+import { useState } from 'react';
 import { useExerciseContext } from '@/state/ExerciseContext';
 import StepControls from './inputs/StepControls';
 import TextHexInput from './inputs/TextHexInput';
@@ -14,9 +15,10 @@ import AsmStepInput from './inputs/AsmStepInput';
 import AsmQuizInput from './inputs/AsmQuizInput';
 import Toolkit from './Toolkit';
 
-export default function InputPanel() {
-  const { currentExercise, asmEmulator } = useExerciseContext();
+export default function InputPanel({ showToolkit = true }: { showToolkit?: boolean }) {
+  const { currentExercise, asmEmulator, state } = useExerciseContext();
   const ex = currentExercise;
+  const [collapsed, setCollapsed] = useState(false);
 
   let content: React.ReactNode;
   if (!ex) {
@@ -77,14 +79,31 @@ export default function InputPanel() {
   }
 
   return (
-    <div className="panel" id="input-panel">
-      <div className="panel-hdr">input</div>
-      <div className="panel-body">
-        <div id="input-area">
-          {content}
-          {ex && <Toolkit exercise={ex} />}
+    <div className={`panel input-panel-shell${collapsed ? ' is-collapsed' : ''}`} id="input-panel">
+      <div className="panel-hdr input-panel-header">
+        <span>input</span>
+        <div className="input-panel-header-actions">
+          {state.inputProgress && (
+            <span className="input-panel-progress">{state.inputProgress}</span>
+          )}
+          <button
+            type="button"
+            className="input-panel-action"
+            aria-expanded={!collapsed}
+            onClick={() => setCollapsed((prev) => !prev)}
+          >
+            {collapsed ? 'Expand' : 'Minimize'}
+          </button>
         </div>
       </div>
+      {!collapsed && (
+        <div className="panel-body">
+        <div id="input-area">
+          {content}
+          {showToolkit && ex && <Toolkit exercise={ex} />}
+        </div>
+        </div>
+      )}
     </div>
   );
 }
