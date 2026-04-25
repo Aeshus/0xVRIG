@@ -16,7 +16,7 @@ import AsmQuizInput from './inputs/AsmQuizInput';
 import Toolkit from './Toolkit';
 
 export default function InputPanel({ showToolkit = true }: { showToolkit?: boolean }) {
-  const { currentExercise, asmEmulator, state, dispatch } = useExerciseContext();
+  const { currentExercise, asmEmulator, state } = useExerciseContext();
   const ex = currentExercise;
   const [collapsed, setCollapsed] = useState(false);
 

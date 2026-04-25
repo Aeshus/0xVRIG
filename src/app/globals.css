@@ -370,7 +370,7 @@ main {
   min-height: 2.15rem;
   padding: 0.45rem 0.75rem;
   background: rgba(255,255,255,0.03);
-  border: 1px solid var(--accent-secondary);
+  border: 1px solid rgba(126, 157, 177, 0.28);
   border-radius: 0.35rem;
   color: var(--accent-secondary);
   cursor: pointer;
@@ -766,6 +766,7 @@ button.link-button:focus-visible,
 @keyframes toastIn { from { opacity: 0; transform: translateX(-50%) translateY(0.35rem); } to { opacity: 1; transform: translateX(-50%) translateY(0); } }
 @keyframes badgeSlideIn { from { opacity: 0; transform: translateX(40px); } to { opacity: 1; transform: translateX(0); } }
 
+
 /* CRT scanline overlay */
 .crt::after {
   content: '';
@@ -968,7 +969,7 @@ button.link-button:focus-visible,
     min-height: 2.6rem;
     padding: 0.65rem 0.75rem;
     border-radius: 0.35rem;
-    border: 1px solid var(--accent-secondary);
+    border: 1px solid rgba(126, 157, 177, 0.28);
     background: rgba(255, 255, 255, 0.03);
     color: var(--accent-secondary);
     font-family: var(--font-sans);

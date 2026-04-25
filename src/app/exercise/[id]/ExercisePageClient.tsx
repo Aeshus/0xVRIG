@@ -109,6 +109,11 @@ function MobileExercisePager() {
       ? orderedExercises[currentIndex + 1]
       : null;
   const basePath = isImagineRit ? '/imagine-rit' : '/exercise';
+  const nextHref = nextExercise
+    ? `${basePath}/${nextExercise.id}`
+    : isImagineRit && currentId === 'rit-rop'
+      ? '/imagine-rit/congratulations'
+      : null;
 
   return (
     <div className="mobile-exercise-pager">
@@ -130,10 +135,10 @@ function MobileExercisePager() {
       <button
         type="button"
         className="link-button primary"
-        disabled={!nextExercise}
-        onClick={() => nextExercise && router.push(`${basePath}/${nextExercise.id}`)}
+        disabled={!nextHref}
+        onClick={() => nextHref && router.push(nextHref)}
       >
-        Next →
+        {nextExercise ? 'Next →' : isImagineRit && currentId === 'rit-rop' ? 'Finish →' : 'Next →'}
       </button>
     </div>
   );
@@ -393,6 +398,9 @@ export default function ExercisePageClient({ params }: { params: Promise<{ id: s
     }
 
     dispatch({ type: 'LOAD_EXERCISE', exerciseId: id });
+    if (id === 'rit-00') {
+      dispatch({ type: 'EXERCISE_COMPLETED', exerciseId: id });
+    }
   }, [id]); // eslint-disable-line
   const mobileVizLabel =
     'Assembly';

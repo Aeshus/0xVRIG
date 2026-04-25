@@ -30,9 +30,13 @@ export default function ImagineRitPage() {
 
   return (
     <div style={{
-      maxWidth: '960px',
-      margin: '2.5rem auto 4rem',
-      padding: '2rem',
+      gridColumn: '1 / -1',
+      gridRow: '1 / -1',
+      width: '100%',
+      margin: 0,
+      padding: 'var(--padding-sm)',
+      minHeight: 0,
+      overflowY: 'auto',
       fontFamily: 'var(--font-sans)',
       color: 'var(--text)',
     }}>
@@ -40,10 +44,10 @@ export default function ImagineRitPage() {
         display: 'grid',
         gap: '1rem',
         gridTemplateColumns: 'repeat(auto-fit, minmax(18rem, 1fr))',
-        marginBottom: '1.75rem',
+        marginBottom: '0.75rem',
       }}>
         <div style={{
-          padding: '1.5rem',
+          padding: '0.85rem',
           border: '1px solid var(--panel-border)',
           borderRadius: 'var(--radius-lg)',
           background: 'var(--bg-panel-strong)',
@@ -51,16 +55,19 @@ export default function ImagineRitPage() {
           backdropFilter: 'blur(18px)',
         }}>
           <div style={{ color: 'var(--accent-secondary)', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.75rem' }}>
-            Beginner Workshop
+            Presented At Imagine RIT
           </div>
           <h1 style={{ color: 'var(--text)', fontSize: 'clamp(2rem, 4vw, 3.2rem)', lineHeight: '1.05', marginBottom: '0.85rem', fontFamily: 'var(--font-display)' }}>
-            Imagine RIT teaches binary exploitation without assuming you already know systems.
+            A First Look at Binary Exploitation
           </h1>
           <p style={{ color: 'var(--text)', fontSize: '1rem', lineHeight: '1.7', maxWidth: '60ch', marginBottom: '1rem' }}>
-            This track is for people who are curious about memory corruption, overflows, and exploit chains but have never touched a debugger or written an exploit before. Each exercise is short, guided, and visual.
+            This track is meant for people arriving at the Imagine RIT event, RITSEC workshops, or simple curiosity who want a first pass through stack overflows and exploit thinking without needing a full reverse-engineering setup first.
           </p>
           <p style={{ color: 'var(--text)', fontSize: '0.95rem', lineHeight: '1.7', maxWidth: '60ch', marginBottom: '1.25rem' }}>
-            You will see how programs store data, what goes wrong when inputs are too large, how control flow gets hijacked, and how attackers work around modern defenses.
+            VRIG, the Vulnerability Research Interest Group, is part of RITSEC and is presenting this workshop using the interactive visual environment here. It lets you see the code, stack state, console output, and helper tools in one place while the lesson walks you through what is happening. If you want the broader context, you can find VRIG at{' '}
+            <a href="https://vri.group/" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-secondary)' }}>vri.group</a>
+            {' '}and RITSEC at{' '}
+            <a href="https://ritsec.club" target="_blank" rel="noreferrer" style={{ color: 'var(--accent-secondary)' }}>ritsec.club</a>.
           </p>
           <div style={{ display: 'flex', flexWrap: 'wrap', gap: '0.75rem' }}>
             <button
@@ -73,13 +80,13 @@ export default function ImagineRitPage() {
               className="link-button secondary"
               onClick={() => router.push('/')}
             >
-              Explore Full 0xVRIG
+              Open Main Lab
             </button>
           </div>
         </div>
 
         <div style={{
-          padding: '1.25rem',
+          padding: '0.85rem',
           border: '1px solid var(--panel-border)',
           borderRadius: 'var(--radius-lg)',
           background: 'var(--bg-panel)',
@@ -109,7 +116,7 @@ export default function ImagineRitPage() {
           </div>
 
           <div style={{
-            padding: '1rem',
+            padding: '0.85rem',
             borderRadius: 'var(--radius-md)',
             background: 'rgba(255,255,255,0.03)',
             border: '1px solid var(--panel-border)',
@@ -127,29 +134,29 @@ export default function ImagineRitPage() {
         </div>
       </section>
 
-      <section style={{ marginBottom: '1.75rem' }}>
+      <section style={{ marginBottom: '0.75rem' }}>
         <div style={{ color: 'var(--text)', fontSize: '0.8rem', fontWeight: 700, letterSpacing: '0.08em', textTransform: 'uppercase', marginBottom: '0.6rem' }}>
-          Why this exists
+          RITSEC + VRIG
         </div>
         <div style={{ display: 'grid', gap: '0.75rem', gridTemplateColumns: 'repeat(auto-fit, minmax(14rem, 1fr))' }}>
           {[
             {
-              title: 'No jargon wall',
-              text: 'The exercises explain what the stack, return address, and payload are while you use them.',
+              title: 'RITSEC context',
+              text: 'RITSEC is the broader student security organization behind the workshop. It runs student-focused security events, CTFs, and workshops, and you can find more at https://ritsec.club.',
             },
             {
-              title: 'Short feedback loops',
-              text: 'You can try an input, see the visual effect immediately, and iterate without needing a separate setup.',
+              title: 'What VRIG does',
+              text: 'VRIG stands for Vulnerability Research Interest Group. It is part of RITSEC, and this is the group presenting the workshop at Imagine RIT. The broader VRIG project lives at https://vri.group/.',
             },
             {
-              title: 'Builds confidence',
-              text: 'Each lesson introduces one idea, then carries it into the next exercise instead of throwing everything at you at once.',
+              title: 'Why this format works',
+              text: 'Instead of asking you to memorize jargon first, the exercises introduce one concept at a time and let you see the effect immediately.',
             },
           ].map((item) => (
             <div
               key={item.title}
               style={{
-                padding: '1rem 1.1rem',
+                padding: '0.85rem',
                 border: '1px solid var(--panel-border)',
                 borderRadius: 'var(--radius-md)',
                 background: 'rgba(255,255,255,0.025)',
@@ -179,7 +186,7 @@ export default function ImagineRitPage() {
               key={ex.id}
               onClick={() => router.push(`/imagine-rit/${ex.id}`)}
               style={{
-                padding: '1rem 1.1rem',
+                padding: '0.85rem',
                 border: `1px solid ${isNext ? 'var(--accent)' : 'var(--panel-border)'}`,
                 borderRadius: 'var(--radius-md)',
                 background: done ? 'rgba(109, 226, 213, 0.08)' : 'rgba(255,255,255,0.025)',
@@ -204,8 +211,8 @@ export default function ImagineRitPage() {
 
       {doneCount === EXERCISES.length && (
         <div style={{
-          marginTop: '2rem',
-          padding: '1.1rem 1.2rem',
+          marginTop: '0.75rem',
+          padding: '0.85rem',
           border: '1px solid var(--accent-secondary)',
           textAlign: 'center',
           borderRadius: 'var(--radius-md)',
@@ -216,6 +223,14 @@ export default function ImagineRitPage() {
           </div>
           <div style={{ fontSize: '0.95rem', color: 'var(--text)', lineHeight: '1.65' }}>
             You learned how buffer overflows work, hijacked program execution, bypassed ASLR, and built a ROP chain. Nice work!
+          </div>
+          <div style={{ marginTop: '0.9rem' }}>
+            <button
+              className="link-button secondary-accent"
+              onClick={() => router.push('/imagine-rit/congratulations')}
+            >
+              View Thank You Page
+            </button>
           </div>
         </div>
       )}
